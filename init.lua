@@ -14,17 +14,9 @@ require('lib/ed/utils')
 
 ButtonActors = require 'actors'
 
--- helpers
-local Output = function(msg) print('\aw[' .. mq.TLO.Time() .. '] [\aoButton Master\aw] ::\a-t ' .. msg) end
-
-local SaveSettings = function()
-    LIP.save(settings_path, settings)
-    ButtonActors.send({ from = mq.TLO.Me.DisplayName(), script = "ButtonMaster", event = "SaveSettings" })
-end
-
 -- globals
 local CharConfig = 'Char_' .. mq.TLO.EverQuest.Server() .. '_' .. mq.TLO.Me.CleanName() .. '_Config'
-local DefaultSets = { 'Primary', 'Movement' }
+local DefaultSets = { 'Primary', 'Movement', }
 local openGUI = true
 local shouldDrawGUI = true
 local initialRun = false
@@ -44,6 +36,16 @@ local buttons = {}
 local editPopupName
 local editTabPopup = "edit_tab_popup"
 local name
+local settings_path = mq.configDir .. '/ButtonMaster.lua'
+local settings = {}
+
+-- helpers
+local Output = function(msg) print('\aw[' .. mq.TLO.Time() .. '] [\aoButton Master\aw] ::\a-t ' .. msg) end
+
+local SaveSettings = function()
+    mq.pickle(settings_path, settings)
+    ButtonActors.send({ from = mq.TLO.Me.DisplayName(), script = "ButtonMaster", event = "SaveSettings", })
+end
 
 -- binds
 local BindBtn = function()
@@ -51,7 +53,7 @@ local BindBtn = function()
 end
 
 local GetButtonBySetIndex = function(Set, Index)
-    return settings[settings[Set][Index]] or { Unassigned = true, Label = tostring(Index) }
+    return settings[settings[Set][Index]] or { Unassigned = true, Label = tostring(Index), }
 end
 
 local GetButtonSectionKeyBySetIndex = function(Set, Index)
@@ -151,27 +153,27 @@ local DrawTabContextMenu = function()
                 width = lastWindowWidth,
                 height = lastWindowHeight,
                 x = lastWindowX,
-                y = lastWindowY
+                y = lastWindowY,
             })
         end
 
         local font_scale = {
             {
                 label = "Tiny",
-                size = 0.8
+                size = 0.8,
             },
             {
                 label = "Small",
-                size = 0.9
+                size = 0.9,
             },
             {
                 label = "Normal",
-                size = 1.0
+                size = 1.0,
             },
             {
                 label = "Large",
-                size  = 1.1
-            }
+                size  = 1.1,
+            },
         }
 
         if ImGui.BeginMenu("Font Scale") then
@@ -218,12 +220,11 @@ end
 
 local DrawContextMenu = function(Set, Index)
     local openPopup = false
-    local ButtonKey = GetButtonSectionKeyBySetIndex(Set, Index)
     local Button = GetButtonBySetIndex(Set, Index)
 
     local unassigned = {}
     local keys = {}
-    for k, v in pairs(settings[Set]) do keys[v] = true end
+    for _, v in pairs(settings[Set]) do keys[v] = true end
     for k, v in pairs(settings) do
         if k:find("^(Button_)") and keys[k] == nil then
             unassigned[k] = v
@@ -330,8 +331,8 @@ local DrawEditButtonPopup = function(Set, Index)
         end
 
         -- color pickers
-        if Button.ButtonColorRGB ~= nil then
-            local tColors = split(Button.ButtonColorRGB, ",")
+        if tmpButton[ButtonKey].ButtonColorRGB ~= nil then
+            local tColors = split(tmpButton[ButtonKey].ButtonColorRGB, ",")
             for i, v in ipairs(tColors) do btnColor[i] = tonumber(v / 255) end
         end
         local col, used = ImGui.ColorEdit3("Button Color", btnColor, ImGuiColorEditFlags.NoInputs)
@@ -341,8 +342,8 @@ local DrawEditButtonPopup = function(Set, Index)
                 math.floor(col[2] * 255), math.floor(col[3] * 255))
         end
         ImGui.SameLine()
-        if Button.TextColorRGB ~= nil then
-            local tColors = split(Button.TextColorRGB, ",")
+        if tmpButton[ButtonKey].TextColorRGB ~= nil then
+            local tColors = split(tmpButton[ButtonKey].TextColorRGB, ",")
             for i, v in ipairs(tColors) do txtColor[i] = tonumber(v / 255) end
         end
         col, used = ImGui.ColorEdit3("Text Color", txtColor, ImGuiColorEditFlags.NoInputs)
@@ -487,6 +488,7 @@ local DrawButtons = function(Set)
             if ImGui.BeginDragDropTarget() then
                 local payload = ImGui.AcceptDragDropPayload("BTN")
                 if payload ~= nil then
+                    ---@diagnostic disable-next-line: undefined-field
                     local num = payload.Data;
                     -- swap the keys in the button set
                     settings[Set][num], settings[Set][ButtonIndex] = settings[Set][ButtonIndex], settings[Set][num]
@@ -565,46 +567,52 @@ local ButtonGUI = function()
 end
 
 local LoadSettings = function()
-    config_dir = mq.TLO.MacroQuest.Path():gsub('\\', '/')
-    settings_file = '/config/ButtonMaster.ini'
-    settings_path = config_dir .. settings_file
-
-    if file_exists(settings_path) then
-        settings = LIP.load(settings_path)
+    local config, err = loadfile(settings_path)
+    if err or not config then
+        local old_settings_path = settings_path:gsub(".lua", ".ini")
+        printf("\ayUnable to load global settings file(%s), creating a new one from legacy ini(%s) file!",
+            settings_path, old_settings_path)
+        if file_exists(old_settings_path) then
+            settings = LIP.load(old_settings_path)
+            SaveSettings()
+        else
+            printf("\ayUnable to load legacy settings file(%s), creating a new config!", old_settings_path)
+            settings = {
+                Global = {
+                    ButtonSize = 6,
+                    ButtonCount = 4,
+                },
+                Sets = { 'Primary', 'Movement', },
+                Set_Primary = { 'Button_1', 'Button_2', 'Button_3', },
+                Set_Movement = { 'Button_4', },
+                Button_1 = {
+                    Label = 'Burn (all)',
+                    Cmd1 = '/bcaa //burn',
+                    Cmd2 = '/timed 500 /bcaa //burn',
+                },
+                Button_2 = {
+                    Label = 'Pause (all)',
+                    Cmd1 = '/bcaa //multi ; /twist off ; /mqp on',
+                },
+                Button_3 = {
+                    Label = 'Unpause (all)',
+                    Cmd1 = '/bcaa //mqp off',
+                },
+                Button_4 = {
+                    Label = 'Nav Target (bca)',
+                    Cmd1 = '/bca //nav id ${Target.ID}',
+                },
+                [CharConfig] = DefaultSets,
+            }
+            SaveSettings()
+        end
     else
-        settings = {
-            Global = {
-                ButtonSize = 6,
-                ButtonCount = 4,
-            },
-            Sets = { 'Primary', 'Movement' },
-            Set_Primary = { 'Button_1', 'Button_2', 'Button_3' },
-            Set_Movement = { 'Button_4' },
-            Button_1 = {
-                Label = 'Burn (all)',
-                Cmd1 = '/bcaa //burn',
-                Cmd2 = '/timed 500 /bcaa //burn'
-            },
-            Button_2 = {
-                Label = 'Pause (all)',
-                Cmd1 = '/bcaa //multi ; /twist off ; /mqp on'
-            },
-            Button_3 = {
-                Label = 'Unpause (all)',
-                Cmd1 = '/bcaa //mqp off'
-            },
-            Button_4 = {
-                Label = 'Nav Target (bca)',
-                Cmd1 = '/bca //nav id ${Target.ID}'
-            },
-            [CharConfig] = DefaultSets
-        }
-        SaveSettings()
+        settings = config()
     end
 
     -- if this character doesn't have the sections in the ini, create them
     if settings[CharConfig] == nil then
-        settings[CharConfig] = DefaultSets
+        settings[CharConfig] = settings.DefaultSets or DefaultSets -- use user defined Defaults before hardcoded ones.
         initialRun = true
         SaveSettings()
     end
@@ -612,7 +620,7 @@ end
 
 local Setup = function()
     LoadSettings()
-    Output('\ayButton Master by (\a-to_O\ay) Special.Ed (\a-to_O\ay) - \atLoaded ' .. settings_file)
+    Output('\ayButton Master by (\a-to_O\ay) Special.Ed (\a-to_O\ay) - \atLoaded ' .. settings_path)
 
     mq.imgui.init('ButtonGUI', ButtonGUI)
     mq.bind('/btn', BindBtn)
