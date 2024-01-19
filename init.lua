@@ -620,7 +620,7 @@ end
 
 local Setup = function()
     LoadSettings()
-    Output('\ayButton Master by (\a-to_O\ay) Special.Ed (\a-to_O\ay) - \atLoaded ' .. settings_path)
+    Output('\ayButton Master by (\a-to_O\ay) Special.Ed, Derple (\a-to_O\ay) - \atLoaded ' .. settings_path)
 
     mq.imgui.init('ButtonGUI', ButtonGUI)
     mq.bind('/btn', BindBtn)
