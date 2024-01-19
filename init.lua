@@ -643,20 +643,22 @@ end
 -- Global Messaging callback
 ---@diagnostic disable-next-line: unused-local
 local script_actor = ButtonActors.register(function(message)
-    if message()["from"] == mq.TLO.Me.DisplayName() then return end
-    if message()["script"] ~= "ButtonMaster" then return end
+    local msg = message()
+
+    if msg["from"] == mq.TLO.Me.DisplayName() then return end
+    if msg["script"] ~= "ButtonMaster" then return end
 
     ---@diagnostic disable-next-line: redundant-parameter
-    Output(string.format("\ayGot Event from(\am%s\ay) event(\at%s\ay)", message()["from"], message()["event"]))
+    Output(string.format("\ayGot Event from(\am%s\ay) event(\at%s\ay)", msg["from"], msg["event"]))
 
-    if message()["event"] == "SaveSettings" then
+    if msg["event"] == "SaveSettings" then
         LoadSettings()
-    elseif message()["event"] == "CopyLoc" then
+    elseif msg["event"] == "CopyLoc" then
         updateWindowPosSize = true
-        newWidth = (tonumber(message()["width"]) or 100)
-        newHeight = (tonumber(message()["height"]) or 100)
-        newX = (tonumber(message()["x"]) or 0)
-        newY = (tonumber(message()["y"]) or 0)
+        newWidth = (tonumber(msg["width"]) or 100)
+        newHeight = (tonumber(msg["height"]) or 100)
+        newX = (tonumber(msg["x"]) or 0)
+        newY = (tonumber(msg["y"]) or 0)
 
         printf("\agReplicating dimentions: \atw\ax(\am%d\ax) \ath\ax(\am%d\ax) \atx\ax(\am%d\ax) \aty\ax(\am%d\ax)",
             newWidth,
