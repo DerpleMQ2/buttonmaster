@@ -42,9 +42,14 @@ local settings = {}
 -- helpers
 local Output = function(msg) print('\aw[' .. mq.TLO.Time() .. '] [\aoButton Master\aw] ::\a-t ' .. msg) end
 
-local SaveSettings = function()
+local function SaveSettings(doBroadcast)
+    if doBroadcast == nil then doBroadcast = true end
+
     mq.pickle(settings_path, settings)
-    ButtonActors.send({ from = mq.TLO.Me.DisplayName(), script = "ButtonMaster", event = "SaveSettings", })
+
+    if doBroadcast then
+        ButtonActors.send({ from = mq.TLO.Me.DisplayName(), script = "ButtonMaster", event = "SaveSettings", })
+    end
 end
 
 -- binds
@@ -566,7 +571,7 @@ local ButtonGUI = function()
     ImGui.End()
 end
 
-local LoadSettings = function()
+local function LoadSettings()
     local config, err = loadfile(settings_path)
     if err or not config then
         local old_settings_path = settings_path:gsub(".lua", ".ini")
@@ -574,7 +579,7 @@ local LoadSettings = function()
             settings_path, old_settings_path)
         if file_exists(old_settings_path) then
             settings = LIP.load(old_settings_path)
-            SaveSettings()
+            SaveSettings(false)
         else
             printf("\ayUnable to load legacy settings file(%s), creating a new config!", old_settings_path)
             settings = {
