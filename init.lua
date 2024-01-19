@@ -460,7 +460,7 @@ local DrawButtons = function(Set)
         end
 
         ImGui.SetWindowFontScale(settings['Global']['Font'] or 1)
-        local clicked = ImGui.Button(Button.Label:gsub(" ", "\n"), btnSize, btnSize)
+        local clicked = ImGui.Button(tostring(Button.Label):gsub(" ", "\n"), btnSize, btnSize)
         ImGui.SetWindowFontScale(1)
 
         -- pop button styles as necessary
