@@ -630,6 +630,7 @@ local function LoadSettings()
         SaveSettings()
     end
 
+    -- Convert old Cmd1-5 buttons to new Cmd style
     convertOldStyleToNew()
 end
 
