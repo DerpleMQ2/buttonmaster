@@ -560,6 +560,7 @@ end
 
 local function convertOldStyleToNew()
     local needsSave = false
+    -- Run through all settings and make sure they are in the new format.
     for key, value in pairs(settings) do
         if key:find("^(Button_)") and value.Cmd1 or value.Cmd2 or value.Cmd3 or value.Cmd4 or value.Cmd5 then
             Output(string.format("Key: %s Needs Converted!", key))
