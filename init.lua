@@ -32,7 +32,7 @@ local lastWindowHeight = 0
 local lastWindowWidth = 0
 local lastWindowX = 0
 local lastWindowY = 0
-local buttons = {}
+local visibleButtonCount = 0
 local editPopupName
 local editTabPopup = "edit_tab_popup"
 local name
@@ -91,8 +91,8 @@ local RecalculateVisibleButtons = function()
     local cols = math.floor(lastWindowWidth / (btnSize + 5))
     local count = 100
     if rows * cols < 100 then count = rows * cols end
-    buttons = {}
-    for i = 1, count do buttons[i] = i end
+
+    visibleButtonCount = count
 end
 
 local DrawTabContextMenu = function()
@@ -450,7 +450,13 @@ local DrawButtons = function(Set)
     local btnSize = (settings['Global']['ButtonSize'] or 6) * 10
     local cols = math.floor(ImGui.GetWindowSize() / (btnSize + 5))
 
-    for i, ButtonIndex in ipairs(buttons) do
+    local lastAssignedButton = 1
+
+    for i = 1, 100 do if not GetButtonBySetIndex(Set, i).Unassigned then lastAssignedButton = i end end
+
+    local renderButtonCount = math.max(visibleButtonCount, lastAssignedButton)
+
+    for ButtonIndex = 1, renderButtonCount do
         local ButtonSectionKey = GetButtonSectionKeyBySetIndex(Set, ButtonIndex)
         local Button = GetButtonBySetIndex(Set, ButtonIndex)
 
@@ -511,7 +517,7 @@ local DrawButtons = function(Set)
         end
 
         -- button grid
-        if i % cols ~= 0 then ImGui.SameLine() end
+        if ButtonIndex % cols ~= 0 then ImGui.SameLine() end
     end
 end
 
