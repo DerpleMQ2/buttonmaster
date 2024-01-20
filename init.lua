@@ -583,11 +583,11 @@ local function LoadSettings()
         local old_settings_path = settings_path:gsub(".lua", ".ini")
         printf("\ayUnable to load global settings file(%s), creating a new one from legacy ini(%s) file!",
             settings_path, old_settings_path)
-        if file_exists(settings_path) then
-            settings = LIP.load(settings_path)
+        if file_exists(old_settings_path) then
+            settings = LIP.load(old_settings_path)
             SaveSettings(false)
         else
-            printf("\ayUnable to load settings file(%s), creating a new config!", settings_path)
+            printf("\ayUnable to load legacy settings file(%s), creating a new config!", old_settings_path)
             settings = {
                 Global = {
                     ButtonSize = 6,
