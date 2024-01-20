@@ -562,6 +562,7 @@ local function convertOldStyleToNew()
     local needsSave = false
     -- Run through all settings and make sure they are in the new format.
     for key, value in pairs(settings) do
+        -- TODO: Make buttons a seperate table instead of doing the string compare crap.
         if key:find("^(Button_)") and value.Cmd1 or value.Cmd2 or value.Cmd3 or value.Cmd4 or value.Cmd5 then
             Output(string.format("Key: %s Needs Converted!", key))
             value.Cmd  = string.format("%s\n%s\n%s\n%s\n%s\n%s", value.Cmd or '', value.Cmd1 or '', value.Cmd2 or '', value.Cmd3 or '', value.Cmd4 or '', value.Cmd5 or '')
