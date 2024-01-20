@@ -36,7 +36,7 @@ local visibleButtonCount = 0
 local editPopupName
 local editTabPopup = "edit_tab_popup"
 local name
-local settings_path = mq.configDir .. '/ButtonMaster.ini'
+local settings_path = mq.configDir .. '/ButtonMaster.lua'
 local settings = {}
 
 -- helpers
@@ -45,9 +45,7 @@ local Output = function(msg) print('\aw[' .. mq.TLO.Time() .. '] [\aoButton Mast
 local function SaveSettings(doBroadcast)
     if doBroadcast == nil then doBroadcast = true end
 
-    --mq.pickle(settings_path, settings)
-    -- Removing pickle until i fix serialization.
-    LIP.save(settings_path, settings)
+    mq.pickle(settings_path, settings)
 
     if doBroadcast then
         ButtonActors.send({ from = mq.TLO.Me.DisplayName(), script = "ButtonMaster", event = "SaveSettings", })
@@ -316,7 +314,7 @@ local DrawContextMenu = function(Set, Index)
 end
 
 local HandleEdit = function(Set, Index, Key, Prop)
-    local txt, selected = ImGui.InputText(Prop, tmpButton[Key][Prop] or '', 0)
+    local txt, selected = ImGui.InputText(Prop, tmpButton[Key][Prop] or '')
     if selected then
         -- if theres no value, nil the key so we don't save empty command lines
         if txt:len() > 0 then
@@ -580,48 +578,48 @@ local ButtonGUI = function()
 end
 
 local function LoadSettings()
-    --local config, err = loadfile(settings_path)
-    --if err or not config then
-    --local old_settings_path = settings_path:gsub(".lua", ".ini")
-    --printf("\ayUnable to load global settings file(%s), creating a new one from legacy ini(%s) file!",
-    --    settings_path, old_settings_path)
-    if file_exists(settings_path) then
-        settings = LIP.load(settings_path)
-        --SaveSettings(false)
+    local config, err = loadfile(settings_path)
+    if err or not config then
+        local old_settings_path = settings_path:gsub(".lua", ".ini")
+        printf("\ayUnable to load global settings file(%s), creating a new one from legacy ini(%s) file!",
+            settings_path, old_settings_path)
+        if file_exists(settings_path) then
+            settings = LIP.load(settings_path)
+            SaveSettings(false)
+        else
+            printf("\ayUnable to load settings file(%s), creating a new config!", settings_path)
+            settings = {
+                Global = {
+                    ButtonSize = 6,
+                    ButtonCount = 4,
+                },
+                Sets = { 'Primary', 'Movement', },
+                Set_Primary = { 'Button_1', 'Button_2', 'Button_3', },
+                Set_Movement = { 'Button_4', },
+                Button_1 = {
+                    Label = 'Burn (all)',
+                    Cmd1 = '/bcaa //burn',
+                    Cmd2 = '/timed 500 /bcaa //burn',
+                },
+                Button_2 = {
+                    Label = 'Pause (all)',
+                    Cmd1 = '/bcaa //multi ; /twist off ; /mqp on',
+                },
+                Button_3 = {
+                    Label = 'Unpause (all)',
+                    Cmd1 = '/bcaa //mqp off',
+                },
+                Button_4 = {
+                    Label = 'Nav Target (bca)',
+                    Cmd1 = '/bca //nav id ${Target.ID}',
+                },
+                [CharConfig] = DefaultSets,
+            }
+            SaveSettings()
+        end
     else
-        printf("\ayUnable to load settings file(%s), creating a new config!", settings_path)
-        settings = {
-            Global = {
-                ButtonSize = 6,
-                ButtonCount = 4,
-            },
-            Sets = { 'Primary', 'Movement', },
-            Set_Primary = { 'Button_1', 'Button_2', 'Button_3', },
-            Set_Movement = { 'Button_4', },
-            Button_1 = {
-                Label = 'Burn (all)',
-                Cmd1 = '/bcaa //burn',
-                Cmd2 = '/timed 500 /bcaa //burn',
-            },
-            Button_2 = {
-                Label = 'Pause (all)',
-                Cmd1 = '/bcaa //multi ; /twist off ; /mqp on',
-            },
-            Button_3 = {
-                Label = 'Unpause (all)',
-                Cmd1 = '/bcaa //mqp off',
-            },
-            Button_4 = {
-                Label = 'Nav Target (bca)',
-                Cmd1 = '/bca //nav id ${Target.ID}',
-            },
-            [CharConfig] = DefaultSets,
-        }
-        SaveSettings()
+        settings = config()
     end
-    --else
-    --    settings = config()
-    --end
 
     -- if this character doesn't have the sections in the ini, create them
     if settings[CharConfig] == nil then
