@@ -559,6 +559,7 @@ local ButtonGUI = function()
 end
 
 local function convertOldStyleToNew()
+    local needsSave = false
     for key, value in pairs(settings) do
         if key:find("^(Button_)") and value.Cmd1 or value.Cmd2 or value.Cmd3 or value.Cmd4 or value.Cmd5 then
             Output(string.format("Key: %s Needs Converted!", key))
@@ -571,9 +572,12 @@ local function convertOldStyleToNew()
             value.Cmd3 = nil
             value.Cmd4 = nil
             value.Cmd5 = nil
+            needsSave  = true
         end
     end
-    SaveSettings(false)
+    if needsSave then
+        SaveSettings(false)
+    end
 end
 
 local function LoadSettings()
