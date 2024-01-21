@@ -35,7 +35,7 @@ local lastWindowY = 0
 local visibleButtonCount = 0
 local editTabPopup = "edit_tab_popup"
 local name
-local settings_path = mq.configDir .. '\\ButtonMaster.lua'
+local settings_path = mq.configDir .. '/ButtonMaster.lua'
 local settings = {}
 local editButtonPopupOpen = false
 local editButtonSet = ""
@@ -98,12 +98,6 @@ end
 
 local DrawTabContextMenu = function()
     local openPopup = false
-
-    if not settings or not settings[CharConfig] or not settings['Sets'] then
-        -- Either settings is nil, or the expected tables within settings are nil.
-        -- Handle this situation appropriately, maybe log an error or set default values.
-        return
-    end
 
     local max = 1
     local unassigned = {}
@@ -511,11 +505,7 @@ local DrawTabs = function()
     ImGui.SameLine()
     DrawTabContextMenu()
     DrawCreateTab()
-    if not settings or not settings[CharConfig] or not settings['Sets'] then
-        -- Either settings is nil, or the expected tables within settings are nil.
-        -- Handle this situation appropriately, maybe log an error or set default values.
-        return
-    end
+
     if ImGui.BeginTabBar("Tabs") then
         for i, set in ipairs(settings[CharConfig]) do
             if ImGui.BeginTabItem(set) then
@@ -572,22 +562,20 @@ local function convertOldStyleToNew()
     local needsSave = false
     -- Run through all settings and make sure they are in the new format.
     for key, value in pairs(settings) do
-        if key:find("^(Button_)") and (value.Cmd1 or value.Cmd2 or value.Cmd3 or value.Cmd4 or value.Cmd5) then
+        -- TODO: Make buttons a seperate table instead of doing the string compare crap.
+        if key:find("^(Button_)") and value.Cmd1 or value.Cmd2 or value.Cmd3 or value.Cmd4 or value.Cmd5 then
             Output(string.format("Key: %s Needs Converted!", key))
-            local cmds = {value.Cmd, value.Cmd1, value.Cmd2, value.Cmd3, value.Cmd4, value.Cmd5}
-            local cmdStr = ""
-            for _, cmd in ipairs(cmds) do
-                if cmd and cmd ~= "" then
-                    cmd = cmd:gsub("'", "''") -- Escape single quotes
-                    if cmdStr ~= "" then
-                        cmdStr = cmdStr .. "\\n"  -- Use escaped newline
-                    end
-                    cmdStr = cmdStr .. cmd
-                end
-            end
-            value.Cmd = cmdStr
-            value.Cmd1, value.Cmd2, value.Cmd3, value.Cmd4, value.Cmd5 = nil, nil, nil, nil, nil
-            needsSave = true
+            value.Cmd  = string.format("%s\\n%s\\n%s\\n%s\\n%s\\n%s", value.Cmd or '', value.Cmd1 or '', value.Cmd2 or '', value.Cmd3 or '', value.Cmd4 or '', value.Cmd5 or '')
+            value.Cmd  = value.Cmd:gsub("\n+", "\\n")
+            value.Cmd  = value.Cmd:gsub("\n$", "")
+            value.Cmd  = value.Cmd:gsub("^\n", "")
+            value.Cmd = value.Cmd:gsub("'", "\'")
+            value.Cmd1 = nil
+            value.Cmd2 = nil
+            value.Cmd3 = nil
+            value.Cmd4 = nil
+            value.Cmd5 = nil
+            needsSave  = true
         end
     end
     if needsSave then
@@ -596,70 +584,6 @@ local function convertOldStyleToNew()
 end
 
 local function LoadSettings()
-    local config, err = loadfile(settings_path)
-    local old_settings_path = settings_path:gsub(".lua", ".ini")
-    
-    if not config then
-        print("Error loading Lua file: " .. tostring(err))
-        if file_exists(settings_path) then
-            printf("\ayError loading Lua settings file(%s): %s", settings_path, err)
-        elseif file_exists(old_settings_path) then
-            printf("\ayLoading legacy INI settings file(%s).", old_settings_path)
-            settings = LIP.load(old_settings_path)
-            SaveSettings(false)
-        else
-            printf("\ayNeither Lua nor INI settings files found, creating new settings.")
-            -- Default settings initialization
-            settings = {
-                Global = {
-                    ButtonSize = 6,
-                    ButtonCount = 4,
-                },
-                Sets = { 'Primary', 'Movement' },
-                Set_Primary = { 'Button_1', 'Button_2', 'Button_3' },
-                Set_Movement = { 'Button_4' },
-                Button_1 = {
-                    Label = 'Burn (all)',
-                    Cmd = '/bcaa //burn\n/timed 500 /bcaa //burn',
-                },
-                Button_2 = {
-                    Label = 'Pause (all)',
-                    Cmd = '/bcaa //multi ; /twist off ; /mqp on',
-                },
-                Button_3 = {
-                    Label = 'Unpause (all)',
-                    Cmd = '/bcaa //mqp off',
-                },
-                Button_4 = {
-                    Label = 'Nav Target (bca)',
-                    Cmd = '/bca //nav id ${Target.ID}',
-                },
-                [CharConfig] = DefaultSets,
-            } -- Added closing curly brace
-            SaveSettings()
-        end
-    else
-        local status, settingsOrError = pcall(config)
-        if not status then
-            print("Error executing Lua config: " .. tostring(settingsOrError))
-            -- Handle error
-        else
-            settings = settingsOrError
-        end
-            -- if this character doesn't have the sections in the ini, create them
-        if settings[CharConfig] == nil then
-           settings[CharConfig] = settings.DefaultSets or DefaultSets -- use user defined Defaults before hardcoded ones.
-            initialRun = true
-            SaveSettings()
-         end
-
-        -- Convert old Cmd1-5 buttons to new Cmd style
-        convertOldStyleToNew()
-    end
-
-end
-
---[[ local function LoadSettings()
     local config, err = loadfile(settings_path)
     if err or not config then
         local old_settings_path = settings_path:gsub(".lua", ".ini")
@@ -711,7 +635,7 @@ end
 
     -- Convert old Cmd1-5 buttons to new Cmd style
     convertOldStyleToNew()
-end ]]
+end
 
 local Setup = function()
     LoadSettings()
