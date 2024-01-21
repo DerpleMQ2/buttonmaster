@@ -35,7 +35,7 @@ local lastWindowY = 0
 local visibleButtonCount = 0
 local editTabPopup = "edit_tab_popup"
 local name
-local settings_path = mq.configDir .. '/ButtonMaster.lua'
+local settings_path = mq.configDir .. '\\ButtonMaster.lua'
 local settings = {}
 local editButtonPopupOpen = false
 local editButtonSet = ""
@@ -578,6 +578,7 @@ local function convertOldStyleToNew()
             local cmdStr = ""
             for _, cmd in ipairs(cmds) do
                 if cmd and cmd ~= "" then
+                    cmd = cmd:gsub("'", "''") -- Escape single quotes
                     if cmdStr ~= "" then
                         cmdStr = cmdStr .. "\\n"  -- Use escaped newline
                     end
