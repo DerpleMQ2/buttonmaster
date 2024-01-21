@@ -45,7 +45,7 @@ local editButtonTextChanged = false
 -- helpers
 local Output = function(msg) print('\aw[' .. mq.TLO.Time() .. '] [\aoButton Master\aw] ::\a-t ' .. msg) end
 
-local function SaveSettings(doBroadcast)
+--[[ local function SaveSettings(doBroadcast)
     if doBroadcast == nil then doBroadcast = true end
 
     mq.pickle(settings_path, settings)
@@ -53,7 +53,59 @@ local function SaveSettings(doBroadcast)
     if doBroadcast then
         ButtonActors.send({ from = mq.TLO.Me.DisplayName(), script = "ButtonMaster", event = "SaveSettings", })
     end
+end ]]
+local function escapeLuaString(str)
+    print("Original string: " .. str)
+    
+    -- Escape backslashes first to avoid double escaping
+    str = str:gsub("\\", "\\\\") -- escape backslashes
+   -- print("After escaping backslashes: " .. str)
+
+    -- Escape newlines
+    str = str:gsub("\n", "\\n")  -- escape newlines
+  --  print("After escaping newlines: " .. str)
+
+    -- Escape single quotes
+    str = str:gsub("'", "\'")   -- escape single quotes
+   -- print("After escaping single quotes: " .. str)
+
+    return str
 end
+
+local function unescapeLuaString(str)
+    str = str:gsub("\\\\", "\\") -- unescape backslashes
+    str = str:gsub("\\n", "\n")  -- unescape newlines
+    str = str:gsub("\'", "'")   -- unescape single quotes
+    return str
+end
+
+local function checkAndEscapeString(str)
+    if str:find("\\n" or str:find("\'")) then
+        -- String already contains escaped newlines, assume it's properly escaped
+        return str
+    else
+        -- Escape the string
+        return escapeLuaString(str)
+    end
+end
+
+local function SaveSettings(doBroadcast)
+    if doBroadcast == nil then doBroadcast = true end
+
+    -- Iterate over settings and escape command strings if necessary
+    for key, value in pairs(settings) do
+        if key:find("^(Button_)") and type(value) == 'table' and value.Cmd then
+            value.Cmd = checkAndEscapeString(value.Cmd)
+        end
+    end
+
+    mq.pickle(settings_path, settings)
+
+    if doBroadcast then
+        ButtonActors.send({ from = mq.TLO.Me.DisplayName(), script = "ButtonMaster", event = "SaveSettings", })
+    end
+end
+
 
 -- binds
 local BindBtn = function()
@@ -364,10 +416,14 @@ local DrawEditButtonPopup = function()
             editButtonTextChanged = true
         end
 
+        if tmpButton[ButtonKey].Cmd then
+            tmpButton[ButtonKey].Cmd = unescapeLuaString(tmpButton[ButtonKey].Cmd)
+        end
+        
         local textChanged
         tmpButton[ButtonKey].Label, textChanged = ImGui.InputText('Button Label', tmpButton[ButtonKey].Label or '')
         editButtonTextChanged = editButtonTextChanged or textChanged
-
+        
         local xPos = ImGui.GetCursorPosX()
         local footerHeight = 110
         local editHeight = ImGui.GetWindowHeight() - xPos - footerHeight
@@ -378,6 +434,9 @@ local DrawEditButtonPopup = function()
         if ImGui.Button("Save") then
             -- make sure the button label isn't nil/empty/spaces
             if tmpButton[ButtonKey].Label ~= nil and tmpButton[ButtonKey].Label:gsub("%s+", ""):len() > 0 then
+                if tmpButton[ButtonKey].Cmd then
+                    tmpButton[ButtonKey].Cmd = escapeLuaString(tmpButton[ButtonKey].Cmd)
+                end
                 settings[editButtonSet][editButtonIndex] = ButtonKey    -- add the button key for this button set index
                 settings[ButtonKey] = shallowcopy(tmpButton[ButtonKey]) -- store the tmp button into the settings table
                 settings[ButtonKey].Unassigned = nil                    -- clear the unassigned flag
@@ -390,6 +449,38 @@ local DrawEditButtonPopup = function()
                 Output("\arSave failed.  Button Label cannot be empty.")
             end
         end
+        
+--[[ -- save button
+if ImGui.Button("Save") then
+    -- make sure the button label isn't nil/empty/spaces
+    if tmpButton[ButtonKey].Label ~= nil and tmpButton[ButtonKey].Label:gsub("%s+", ""):len() > 0 then
+        -- Escape the command string before saving
+        if tmpButton[ButtonKey].Cmd then
+            tmpButton[ButtonKey].Cmd = escapeLuaString(tmpButton[ButtonKey].Cmd)
+        end
+       -- Output(tmpButton[ButtonKey].Cmd)
+
+        -- Check if it's a new button (e.g., unassigned or new key)
+        local isNewButton = settings[ButtonKey] == nil or settings[ButtonKey].Unassigned
+
+        -- Update the settings table with the new or edited button
+        settings[ButtonKey] = shallowcopy(tmpButton[ButtonKey])
+        settings[ButtonKey].Unassigned = nil -- clear the unassigned flag
+
+        -- Handle new button specific logic
+        if isNewButton then
+            -- Add the new button to the appropriate set and update counters
+            table.insert(settings[editButtonSet], ButtonKey)
+            settings['Global']['ButtonCount'] = settings['Global']['ButtonCount'] + 1
+        end
+
+        SaveSettings()
+        editButtonTextChanged = false
+    else
+        tmpButton[ButtonKey] = nil
+        Output("\arSave failed.  Button Label cannot be empty.")
+    end
+end ]]
 
         ImGui.SameLine()
 
@@ -422,6 +513,7 @@ local DrawEditButtonPopup = function()
     end
     ImGui.End()
 end
+
 
 local DrawButtons = function(Set)
     if ImGui.GetWindowSize() ~= lastWindowWidth or ImGui.GetWindowHeight() ~= lastWindowHeight then
@@ -560,13 +652,28 @@ end
 
 local function convertOldStyleToNew()
     local needsSave = false
+    
     -- Run through all settings and make sure they are in the new format.
     for key, value in pairs(settings) do
         -- TODO: Make buttons a seperate table instead of doing the string compare crap.
-        if key:find("^(Button_)") and value.Cmd1 or value.Cmd2 or value.Cmd3 or value.Cmd4 or value.Cmd5 then
+      local commandString = ""  
+      if key:find("^(Button_)") and value.Cmd1 or value.Cmd2 or value.Cmd3 or value.Cmd4 or value.Cmd5 then
+            
+            
+            if (value.Cmd1) then commandString = commandString .. value.Cmd1 end
+            if (value.Cmd2) then commandString = commandString .. "\\n".. value.Cmd2 end
+            if (value.Cmd3) then commandString = commandString .. "\\n".. value.Cmd3 end
+            if (value.Cmd4) then commandString = commandString .. "\\n".. value.Cmd4 end
+            if (value.Cmd5) then commandString = commandString .. "\\n".. value.Cmd5 end
+            Output(commandString)
+
+
             Output(string.format("Key: %s Needs Converted!", key))
-            value.Cmd  = string.format("%s\\n%s\\n%s\\n%s\\n%s\\n%s", value.Cmd or '', value.Cmd1 or '', value.Cmd2 or '', value.Cmd3 or '', value.Cmd4 or '', value.Cmd5 or '')
-            value.Cmd  = value.Cmd:gsub("\n+", "\\n")
+            -- this should work better but seems to break when creating new buttons and editing old ones. 
+           --value.Cmd  = string.format("%s\\n%s\\n%s\\n%s\\n%s\\n%s", value.Cmd or '', value.Cmd1 or '', value.Cmd2 or '', value.Cmd3 or '', value.Cmd4 or '', value.Cmd5 or '')
+          value.Cmd = commandString 
+           value.Cmd  = value.Cmd:gsub("\n+", "\\n")
+           value.Cmd  = value.Cmd:gsub("\\n\\n", "\\n")
             value.Cmd  = value.Cmd:gsub("\n$", "")
             value.Cmd  = value.Cmd:gsub("^\n", "")
             value.Cmd = value.Cmd:gsub("'", "\'")
