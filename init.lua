@@ -25,6 +25,8 @@ local newWidth = 0
 local newHeight = 0
 local newX = 0
 local newY = 0
+local cachedRows = 0
+local cachedCols = 0
 local tmpButton = {}
 local btnColor = {}
 local txtColor = {}
@@ -41,6 +43,7 @@ local editButtonPopupOpen = false
 local editButtonSet = ""
 local editButtonIndex = 0
 local editButtonTextChanged = false
+local buttonSizeDirty = false
 
 -- helpers
 local Output = function(msg) print('\aw[' .. mq.TLO.Time() .. '] [\aoButton Master\aw] ::\a-t ' .. msg) end
@@ -83,17 +86,33 @@ local DrawButtonTooltip = function(Button)
     end
 end
 
-local RecalculateVisibleButtons = function()
-    local btnSize = (settings['Global']['ButtonSize'] or 6) * 10
-    lastWindowWidth = ImGui.GetWindowSize()
+local RecalculateVisibleButtons = function(Set)
+    buttonSizeDirty = false
+    lastWindowWidth = ImGui.GetWindowWidth()
     lastWindowHeight = ImGui.GetWindowHeight()
     lastWindowX, lastWindowY = ImGui.GetWindowPos()
-    local rows = math.floor(lastWindowHeight / (btnSize + 5))
-    local cols = math.floor(lastWindowWidth / (btnSize + 5))
-    local count = 100
-    if rows * cols < 100 then count = rows * cols end
 
-    visibleButtonCount = count
+    local cursorX, cursorY = ImGui.GetCursorPos() -- this will get us the x pos we start at which tells us of the offset from the main window border
+    local style = ImGui.GetStyle()                -- this will get us ItemSpacing.x which is the amount of space between buttons
+
+    -- global button configs
+    local btnSize = (settings['Global']['ButtonSize'] or 6) * 10
+    cachedCols = math.floor((lastWindowWidth - cursorX) / (btnSize + style.ItemSpacing.x))
+    cachedRows = math.floor((lastWindowHeight - cursorY) / (btnSize + style.ItemSpacing.y))
+
+    local count = 100
+    if cachedRows * cachedCols < 100 then count = cachedRows * cachedCols end
+
+    -- get the last assigned button and make sure it is visible.
+    local lastAssignedButton = 1
+    for i = 1, 100 do if not GetButtonBySetIndex(Set, i).Unassigned then lastAssignedButton = i end end
+
+    -- if the last forced visible buttons isn't the last in a row then render to the end of that row.
+    -- stay with me here. The last button needs to look at the number of buttons per row (cols) and
+    -- the position of this button in that row (button%cols) and add enough to get to the end of the row.
+    lastAssignedButton = lastAssignedButton + (cachedCols - (lastAssignedButton % cachedCols))
+
+    visibleButtonCount = math.max(count, lastAssignedButton)
 end
 
 local DrawTabContextMenu = function()
@@ -144,7 +163,7 @@ local DrawTabContextMenu = function()
                 local checked = settings['Global']['ButtonSize'] == i
                 if ImGui.MenuItem(tostring(i), nil, checked) then
                     settings['Global']['ButtonSize'] = i
-                    RecalculateVisibleButtons()
+                    buttonSizeDirty = true
                     SaveSettings()
                     break
                 end
@@ -424,19 +443,13 @@ local DrawEditButtonPopup = function()
 end
 
 local DrawButtons = function(Set)
-    if ImGui.GetWindowSize() ~= lastWindowWidth or ImGui.GetWindowHeight() ~= lastWindowHeight then
-        RecalculateVisibleButtons()
+    if ImGui.GetWindowWidth() ~= lastWindowWidth or ImGui.GetWindowHeight() ~= lastWindowHeight or buttonSizeDirty then
+        RecalculateVisibleButtons(Set)
     end
 
-    -- global button configs
     local btnSize = (settings['Global']['ButtonSize'] or 6) * 10
-    local cols = math.floor(ImGui.GetWindowSize() / (btnSize + 5))
 
-    local lastAssignedButton = 1
-
-    for i = 1, 100 do if not GetButtonBySetIndex(Set, i).Unassigned then lastAssignedButton = i end end
-
-    local renderButtonCount = math.max(visibleButtonCount, lastAssignedButton)
+    local renderButtonCount = visibleButtonCount
 
     for ButtonIndex = 1, renderButtonCount do
         local Button = GetButtonBySetIndex(Set, ButtonIndex)
@@ -467,7 +480,7 @@ local DrawButtons = function(Set)
                 if c:find('^/') then
                     mq.cmdf(c)
                 else
-                    Output('\arInvalid command: \ax' .. c)
+                    Output(string.format('\arInvalid command on Line %d : \ax%s', i, c))
                 end
             end
         else
@@ -495,7 +508,7 @@ local DrawButtons = function(Set)
         end
 
         -- button grid
-        if ButtonIndex % cols ~= 0 then ImGui.SameLine() end
+        if ButtonIndex % cachedCols ~= 0 then ImGui.SameLine() end
     end
 end
 
