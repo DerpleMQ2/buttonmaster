@@ -114,7 +114,7 @@ local RecalculateVisibleButtons = function(Set)
         lastAssignedButton = lastAssignedButton + (cachedCols - (lastAssignedButton % cachedCols))
     end
 
-    visibleButtonCount = math.max(count, lastAssignedButton)
+    visibleButtonCount = math.min(math.max(count, lastAssignedButton), 100)
 end
 
 local DrawTabContextMenu = function()
