@@ -33,11 +33,14 @@ local lastWindowWidth = 0
 local lastWindowX = 0
 local lastWindowY = 0
 local visibleButtonCount = 0
-local editPopupName
 local editTabPopup = "edit_tab_popup"
 local name
 local settings_path = mq.configDir .. '/ButtonMaster.lua'
 local settings = {}
+local editButtonPopupOpen = false
+local editButtonSet = ""
+local editButtonIndex = 0
+local editButtonTextChanged = false
 
 -- helpers
 local Output = function(msg) print('\aw[' .. mq.TLO.Time() .. '] [\aoButton Master\aw] ::\a-t ' .. msg) end
@@ -95,6 +98,12 @@ end
 
 local DrawTabContextMenu = function()
     local openPopup = false
+
+    if not settings or not settings[CharConfig] or not settings['Sets'] then
+        -- Either settings is nil, or the expected tables within settings are nil.
+        -- Handle this situation appropriately, maybe log an error or set default values.
+        return
+    end
 
     local max = 1
     local unassigned = {}
@@ -237,7 +246,7 @@ local DrawContextMenu = function(Set, Index)
     end
 
     if ImGui.BeginPopupContextItem() then
-        editPopupName = "edit_button_popup|" .. Index
+        --editPopupName = "edit_button_popup|" .. Index
 
         -- only list hotkeys that aren't already assigned to the button set
         if getTableSize(unassigned) > 0 then
@@ -289,14 +298,18 @@ local DrawContextMenu = function(Set, Index)
         -- only show create new for unassigned buttons
         if Button.Unassigned == true then
             if ImGui.MenuItem("Create New") then
-                openPopup = true
+                editButtonPopupOpen = true
+                editButtonIndex = Index
+                editButtonSet = Set
             end
         end
 
         -- only show edit & unassign for assigned buttons
         if Button.Unassigned == nil then
             if ImGui.MenuItem("Edit") then
-                openPopup = true
+                editButtonPopupOpen = true
+                editButtonIndex = Index
+                editButtonSet = Set
             end
             if ImGui.MenuItem("Unassign") then
                 settings[Set][Index] = nil
@@ -306,30 +319,18 @@ local DrawContextMenu = function(Set, Index)
 
         ImGui.EndPopup()
     end
-
-    if openPopup and ImGui.IsPopupOpen(editPopupName) == false then
-        ImGui.OpenPopup(editPopupName)
-        openPopup = false
-    end
 end
 
-local HandleEdit = function(Set, Index, Key, Prop)
-    local txt, selected = ImGui.InputText(Prop, tmpButton[Key][Prop] or '')
-    if selected then
-        -- if theres no value, nil the key so we don't save empty command lines
-        if txt:len() > 0 then
-            tmpButton[Key][Prop] = txt
-        else
-            tmpButton[Key][Prop] = nil
-        end
-    end
-end
+local DrawEditButtonPopup = function()
+    if not editButtonPopupOpen then return end
 
-local DrawEditButtonPopup = function(Set, Index)
-    local ButtonKey = GetButtonSectionKeyBySetIndex(Set, Index)
-    local Button = GetButtonBySetIndex(Set, Index)
+    local ButtonKey = GetButtonSectionKeyBySetIndex(editButtonSet, editButtonIndex)
+    local Button = GetButtonBySetIndex(editButtonSet, editButtonIndex)
+    local shouldDrawEditPopup = false
 
-    if ImGui.BeginPopup("edit_button_popup|" .. Index) then
+    editButtonPopupOpen, shouldDrawEditPopup = ImGui.Begin("Edit Button", editButtonPopupOpen,
+        editButtonTextChanged and ImGuiWindowFlags.UnsavedDocument or ImGuiWindowFlags.None)
+    if editButtonPopupOpen and shouldDrawEditPopup then
         -- shallow copy original button incase we want to reset (close)
         if tmpButton[ButtonKey] == nil then
             tmpButton[ButtonKey] = shallowcopy(Button)
@@ -342,6 +343,7 @@ local DrawEditButtonPopup = function(Set, Index)
         end
         local col, used = ImGui.ColorEdit3("Button Color", btnColor, ImGuiColorEditFlags.NoInputs)
         if used then
+            editButtonTextChanged = true
             btnColor = shallowcopy(col)
             tmpButton[ButtonKey].ButtonColorRGB = string.format("%d,%d,%d", math.floor(col[1] * 255),
                 math.floor(col[2] * 255), math.floor(col[3] * 255))
@@ -353,6 +355,7 @@ local DrawEditButtonPopup = function(Set, Index)
         end
         col, used = ImGui.ColorEdit3("Text Color", txtColor, ImGuiColorEditFlags.NoInputs)
         if used then
+            editButtonTextChanged = true
             txtColor = shallowcopy(col)
             tmpButton[ButtonKey].TextColorRGB = string.format("%d,%d,%d", math.floor(col[1] * 255),
                 math.floor(col[2] * 255), math.floor(col[3] * 255))
@@ -362,34 +365,36 @@ local DrawEditButtonPopup = function(Set, Index)
         ImGui.SameLine()
         if ImGui.Button("Reset") then
             btnColor, txtColor = {}, {}
-            settings[ButtonKey].ButtonColorRGB = nil
-            settings[ButtonKey].TextColorRGB = nil
-            SaveSettings()
-            ImGui.CloseCurrentPopup()
+            tmpButton[ButtonKey].ButtonColorRGB = nil
+            tmpButton[ButtonKey].TextColorRGB = nil
+            editButtonTextChanged = true
         end
 
-        HandleEdit(Set, Index, ButtonKey, 'Label')
-        HandleEdit(Set, Index, ButtonKey, 'Cmd1')
-        HandleEdit(Set, Index, ButtonKey, 'Cmd2')
-        HandleEdit(Set, Index, ButtonKey, 'Cmd3')
-        HandleEdit(Set, Index, ButtonKey, 'Cmd4')
-        HandleEdit(Set, Index, ButtonKey, 'Cmd5')
+        local textChanged
+        tmpButton[ButtonKey].Label, textChanged = ImGui.InputText('Button Label', tmpButton[ButtonKey].Label or '')
+        editButtonTextChanged = editButtonTextChanged or textChanged
+
+        local xPos = ImGui.GetCursorPosX()
+        local footerHeight = 110
+        local editHeight = ImGui.GetWindowHeight() - xPos - footerHeight
+        tmpButton[ButtonKey].Cmd, textChanged = ImGui.InputTextMultiline("##_Cmd_Edit", tmpButton[ButtonKey].Cmd or "", ImVec2(ImGui.GetWindowWidth() * 0.98, editHeight))
+        editButtonTextChanged = editButtonTextChanged or textChanged
 
         -- save button
         if ImGui.Button("Save") then
             -- make sure the button label isn't nil/empty/spaces
             if tmpButton[ButtonKey].Label ~= nil and tmpButton[ButtonKey].Label:gsub("%s+", ""):len() > 0 then
-                settings[Set][Index] = ButtonKey                        -- add the button key for this button set index
+                settings[editButtonSet][editButtonIndex] = ButtonKey    -- add the button key for this button set index
                 settings[ButtonKey] = shallowcopy(tmpButton[ButtonKey]) -- store the tmp button into the settings table
                 settings[ButtonKey].Unassigned = nil                    -- clear the unassigned flag
                 -- if we're saving this, update the button counter
                 settings['Global']['ButtonCount'] = settings['Global']['ButtonCount'] + 1
                 SaveSettings()
+                editButtonTextChanged = false
             else
                 tmpButton[ButtonKey] = nil
                 Output("\arSave failed.  Button Label cannot be empty.")
             end
-            ImGui.CloseCurrentPopup()
         end
 
         ImGui.SameLine()
@@ -403,7 +408,9 @@ local DrawEditButtonPopup = function(Set, Index)
         end
         if closeClick then
             tmpButton[ButtonKey] = shallowcopy(Button)
-            ImGui.CloseCurrentPopup()
+            editButtonPopupOpen = false
+            editButtonIndex = 0
+            editButtonSet = ""
         end
 
         ImGui.SameLine()
@@ -415,28 +422,11 @@ local DrawEditButtonPopup = function(Set, Index)
             ImGui.EndTooltip()
         end
         if clearClick then
-            tmpButton[ButtonKey] = nil -- clear the buffer
-            settings[Set][Index] = nil -- clear the button set index
+            tmpButton[ButtonKey] = nil                     -- clear the buffer
+            settings[editButtonSet][editButtonIndex] = nil -- clear the button set index
         end
-
-        -- ImGui.SameLine()
-
-        -- local deleteClick = ImGui.Button("Delete")
-        -- if ImGui.IsItemHovered() then
-        --     ImGui.BeginTooltip()
-        --     ImGui.Text("No going back - this will destroy the hotbutton!")
-        --     ImGui.EndTooltip()
-        -- end
-        -- if deleteClick then
-        --     settings[ButtonKey] = nil
-        --     tmpButton[ButtonKey] = nil
-        --     settings[Set][Index] = nil
-        --     SaveSettings()
-        --     ImGui.CloseCurrentPopup()
-        -- end
-
-        ImGui.EndPopup()
     end
+    ImGui.End()
 end
 
 local DrawButtons = function(Set)
@@ -455,7 +445,6 @@ local DrawButtons = function(Set)
     local renderButtonCount = math.max(visibleButtonCount, lastAssignedButton)
 
     for ButtonIndex = 1, renderButtonCount do
-        local ButtonSectionKey = GetButtonSectionKeyBySetIndex(Set, ButtonIndex)
         local Button = GetButtonBySetIndex(Set, ButtonIndex)
 
         -- push button styles if configured
@@ -478,15 +467,13 @@ local DrawButtons = function(Set)
         if Button.ButtonColorRGB ~= nil then ImGui.PopStyleColor() end
         if Button.TextColorRGB ~= nil then ImGui.PopStyleColor() end
 
-
         if clicked then
-            for k, cmd in orderedPairs(Button) do
-                if k:find('^(Cmd%d)') then
-                    if cmd:find('^/') then
-                        mq.cmd(cmd)
-                    else
-                        Output('\arInvalid command: \ax' .. cmd)
-                    end
+            local cmds = split(Button.Cmd, "\n")
+            for i, c in ipairs(cmds) do
+                if c:find('^/') then
+                    mq.cmdf(c)
+                else
+                    Output('\arInvalid command: \ax' .. c)
                 end
             end
         else
@@ -511,7 +498,6 @@ local DrawButtons = function(Set)
             -- render button pieces
             DrawButtonTooltip(Button)
             DrawContextMenu(Set, ButtonIndex)
-            DrawEditButtonPopup(Set, ButtonIndex)
         end
 
         -- button grid
@@ -525,7 +511,11 @@ local DrawTabs = function()
     ImGui.SameLine()
     DrawTabContextMenu()
     DrawCreateTab()
-
+    if not settings or not settings[CharConfig] or not settings['Sets'] then
+        -- Either settings is nil, or the expected tables within settings are nil.
+        -- Handle this situation appropriately, maybe log an error or set default values.
+        return
+    end
     if ImGui.BeginTabBar("Tabs") then
         for i, set in ipairs(settings[CharConfig]) do
             if ImGui.BeginTabItem(set) then
@@ -573,11 +563,102 @@ local ButtonGUI = function()
             ImGui.SetWindowPos(newX, newY)
         end
         DrawTabs()
+        DrawEditButtonPopup()
     end
     ImGui.End()
 end
 
+local function convertOldStyleToNew()
+    local needsSave = false
+    -- Run through all settings and make sure they are in the new format.
+    for key, value in pairs(settings) do
+        if key:find("^(Button_)") and (value.Cmd1 or value.Cmd2 or value.Cmd3 or value.Cmd4 or value.Cmd5) then
+            Output(string.format("Key: %s Needs Converted!", key))
+            local cmds = {value.Cmd, value.Cmd1, value.Cmd2, value.Cmd3, value.Cmd4, value.Cmd5}
+            local cmdStr = ""
+            for _, cmd in ipairs(cmds) do
+                if cmd and cmd ~= "" then
+                    if cmdStr ~= "" then
+                        cmdStr = cmdStr .. "\\n"  -- Use escaped newline
+                    end
+                    cmdStr = cmdStr .. cmd
+                end
+            end
+            value.Cmd = cmdStr
+            value.Cmd1, value.Cmd2, value.Cmd3, value.Cmd4, value.Cmd5 = nil, nil, nil, nil, nil
+            needsSave = true
+        end
+    end
+    if needsSave then
+        SaveSettings(false)
+    end
+end
+
 local function LoadSettings()
+    local config, err = loadfile(settings_path)
+    local old_settings_path = settings_path:gsub(".lua", ".ini")
+    
+    if not config then
+        print("Error loading Lua file: " .. tostring(err))
+        if file_exists(settings_path) then
+            printf("\ayError loading Lua settings file(%s): %s", settings_path, err)
+        elseif file_exists(old_settings_path) then
+            printf("\ayLoading legacy INI settings file(%s).", old_settings_path)
+            settings = LIP.load(old_settings_path)
+            SaveSettings(false)
+        else
+            printf("\ayNeither Lua nor INI settings files found, creating new settings.")
+            -- Default settings initialization
+            settings = {
+                Global = {
+                    ButtonSize = 6,
+                    ButtonCount = 4,
+                },
+                Sets = { 'Primary', 'Movement' },
+                Set_Primary = { 'Button_1', 'Button_2', 'Button_3' },
+                Set_Movement = { 'Button_4' },
+                Button_1 = {
+                    Label = 'Burn (all)',
+                    Cmd = '/bcaa //burn\n/timed 500 /bcaa //burn',
+                },
+                Button_2 = {
+                    Label = 'Pause (all)',
+                    Cmd = '/bcaa //multi ; /twist off ; /mqp on',
+                },
+                Button_3 = {
+                    Label = 'Unpause (all)',
+                    Cmd = '/bcaa //mqp off',
+                },
+                Button_4 = {
+                    Label = 'Nav Target (bca)',
+                    Cmd = '/bca //nav id ${Target.ID}',
+                },
+                [CharConfig] = DefaultSets,
+            } -- Added closing curly brace
+            SaveSettings()
+        end
+    else
+        local status, settingsOrError = pcall(config)
+        if not status then
+            print("Error executing Lua config: " .. tostring(settingsOrError))
+            -- Handle error
+        else
+            settings = settingsOrError
+        end
+            -- if this character doesn't have the sections in the ini, create them
+        if settings[CharConfig] == nil then
+           settings[CharConfig] = settings.DefaultSets or DefaultSets -- use user defined Defaults before hardcoded ones.
+            initialRun = true
+            SaveSettings()
+         end
+
+        -- Convert old Cmd1-5 buttons to new Cmd style
+        convertOldStyleToNew()
+    end
+
+end
+
+--[[ local function LoadSettings()
     local config, err = loadfile(settings_path)
     if err or not config then
         local old_settings_path = settings_path:gsub(".lua", ".ini")
@@ -598,20 +679,19 @@ local function LoadSettings()
                 Set_Movement = { 'Button_4', },
                 Button_1 = {
                     Label = 'Burn (all)',
-                    Cmd1 = '/bcaa //burn',
-                    Cmd2 = '/timed 500 /bcaa //burn',
+                    Cmd = '/bcaa //burn\n/timed 500 /bcaa //burn',
                 },
                 Button_2 = {
                     Label = 'Pause (all)',
-                    Cmd1 = '/bcaa //multi ; /twist off ; /mqp on',
+                    Cmd = '/bcaa //multi ; /twist off ; /mqp on',
                 },
                 Button_3 = {
                     Label = 'Unpause (all)',
-                    Cmd1 = '/bcaa //mqp off',
+                    Cmd = '/bcaa //mqp off',
                 },
                 Button_4 = {
                     Label = 'Nav Target (bca)',
-                    Cmd1 = '/bca //nav id ${Target.ID}',
+                    Cmd = '/bca //nav id ${Target.ID}',
                 },
                 [CharConfig] = DefaultSets,
             }
@@ -627,7 +707,10 @@ local function LoadSettings()
         initialRun = true
         SaveSettings()
     end
-end
+
+    -- Convert old Cmd1-5 buttons to new Cmd style
+    convertOldStyleToNew()
+end ]]
 
 local Setup = function()
     LoadSettings()
