@@ -110,7 +110,9 @@ local RecalculateVisibleButtons = function(Set)
     -- if the last forced visible buttons isn't the last in a row then render to the end of that row.
     -- stay with me here. The last button needs to look at the number of buttons per row (cols) and
     -- the position of this button in that row (button%cols) and add enough to get to the end of the row.
-    lastAssignedButton = lastAssignedButton + (cachedCols - (lastAssignedButton % cachedCols))
+    if lastAssignedButton % cachedCols ~= 0 then
+        lastAssignedButton = lastAssignedButton + (cachedCols - (lastAssignedButton % cachedCols))
+    end
 
     visibleButtonCount = math.max(count, lastAssignedButton)
 end
