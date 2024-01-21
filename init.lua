@@ -55,7 +55,7 @@ local Output = function(msg) print('\aw[' .. mq.TLO.Time() .. '] [\aoButton Mast
     end
 end ]]
 local function escapeLuaString(str)
-    print("Original string: " .. str)
+    --print("Original string: " .. str)
     
     -- Escape backslashes first to avoid double escaping
     str = str:gsub("\\", "\\\\") -- escape backslashes
@@ -665,7 +665,7 @@ local function convertOldStyleToNew()
             if (value.Cmd3) then commandString = commandString .. "\\n".. value.Cmd3 end
             if (value.Cmd4) then commandString = commandString .. "\\n".. value.Cmd4 end
             if (value.Cmd5) then commandString = commandString .. "\\n".. value.Cmd5 end
-            Output(commandString)
+            --Output(commandString)
 
 
             Output(string.format("Key: %s Needs Converted!", key))
