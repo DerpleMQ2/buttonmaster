@@ -8,9 +8,12 @@
         Shwebro, Kevbro, RYN
 --]]
 
-local mq = require('mq')
-local LIP = require('lib/LIP')
-local Icons = require('mq.ICONS')
+local mq             = require('mq')
+local LIP            = require('lib/LIP')
+local Icons          = require('mq.ICONS')
+local picker         = require('lib.IconPicker').new()
+local animSpellIcons = mq.FindTextureAnimation('A_SpellIcons')
+
 require('lib/ed/utils')
 
 ButtonActors = require 'actors'
@@ -77,6 +80,25 @@ local GetButtonSectionKeyBySetIndex = function(Set, Index)
         key = 'Button_' .. tonumber(settings['Global']['ButtonCount'] + 1)
     end
     return key
+end
+
+local function renderSpellIcon(id, size, overlayButton, buttonLabel)
+    local cursor_x, cursor_y = ImGui.GetCursorPos()
+    -- icon
+    local clicked = false
+    animSpellIcons:SetTextureCell(id)
+    ImGui.DrawTextureAnimation(animSpellIcons, size, size)
+    if overlayButton then
+        local label_x, label_y = ImGui.CalcTextSize(buttonLabel)
+        local style = ImGui.GetStyle()
+        local midX = math.max((size - label_x) / 2, 0)
+        local midY = (size - label_y) / 2
+        ImGui.SetCursorPos(cursor_x + midX, cursor_y + midY)
+        ImGui.Text(buttonLabel)
+        ImGui.SetCursorPos(cursor_x, cursor_y)
+        clicked = ImGui.InvisibleButton(buttonLabel, size, size)
+    end
+    return clicked
 end
 
 local DrawButtonTooltip = function(Button)
@@ -377,6 +399,25 @@ local DrawEditButtonPopup = function()
                 math.floor(col[2] * 255), math.floor(col[3] * 255))
         end
 
+        ImGui.SameLine()
+        if tmpButton[ButtonKey].Icon then
+            if renderSpellIcon(tmpButton[ButtonKey].Icon, 20, true, "") then
+                picker:SetOpen()
+            end
+        else
+            if ImGui.Button('', ImVec2(20, 20)) then
+                picker:SetOpen()
+            end
+        end
+
+        ImGui.SameLine()
+        ImGui.Text("Icon")
+
+        if picker.Selected then
+            tmpButton[ButtonKey].Icon = picker.Selected
+            picker:ClearSelection()
+        end
+
         -- color reset
         ImGui.SameLine()
         if ImGui.Button("Reset") then
@@ -470,7 +511,12 @@ local DrawButtons = function(Set)
         end
 
         ImGui.SetWindowFontScale(settings['Global']['Font'] or 1)
-        local clicked = ImGui.Button(tostring(Button.Label):gsub(" ", "\n"), btnSize, btnSize)
+        local clicked
+        if Button.Icon then
+            clicked = renderSpellIcon(Button.Icon, btnSize, true, tostring(Button.Label):gsub(" ", "\n"))
+        else
+            clicked = ImGui.Button(tostring(Button.Label):gsub(" ", "\n"), btnSize, btnSize)
+        end
         ImGui.SetWindowFontScale(1)
 
         -- pop button styles as necessary
@@ -586,6 +632,7 @@ local ButtonGUI = function()
         end
         DrawTabs()
         DrawEditButtonPopup()
+        picker:DrawIconPicker()
     end
     ImGui.End()
 end
