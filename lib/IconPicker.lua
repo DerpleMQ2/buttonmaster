@@ -55,7 +55,7 @@ function IconPicker.new(types)
     local newPicker = {
         Open = false,
         Draw = false,
-        maxSpell = 180,
+        maxSpell = 2243,
         maxItem = 0,
     }
     return setmetatable(newPicker, IconPicker)
@@ -97,11 +97,11 @@ function IconPicker:DrawIconPicker()
         local cols = math.max(math.floor(width / (IconSize + style.ItemSpacing.x)), 1)
 
         if ImGui.BeginTable("Icons", cols) then
-            for iconId = 1, self.maxSpell do
+            for iconId = 0, self.maxSpell do
                 ImGui.TableNextColumn()
                 self:renderSpellIcon(iconId)
             end
-            for iconId = 1, self.maxItem do
+            for iconId = 0, self.maxItem do
                 ImGui.TableNextColumn()
                 self:renderItemIcon(iconId)
             end
