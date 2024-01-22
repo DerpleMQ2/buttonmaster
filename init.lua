@@ -54,6 +54,7 @@ local function SaveSettings(doBroadcast)
     mq.pickle(settings_path, settings)
 
     if doBroadcast then
+        --Output(string.format("\aySent Event from(\am%s\ay) event(\at%s\ay)", mq.TLO.Me.DisplayName(), "SaveSettings"))
         ButtonActors.send({ from = mq.TLO.Me.DisplayName(), script = "ButtonMaster", event = "SaveSettings", })
     end
 end
@@ -90,7 +91,6 @@ local RecalculateVisibleButtons = function(Set)
     buttonSizeDirty = false
     lastWindowWidth = ImGui.GetWindowWidth()
     lastWindowHeight = ImGui.GetWindowHeight()
-    lastWindowX, lastWindowY = ImGui.GetWindowPos()
 
     local cursorX, cursorY = ImGui.GetCursorPos() -- this will get us the x pos we start at which tells us of the offset from the main window border
     local style = ImGui.GetStyle()                -- this will get us ItemSpacing.x which is the amount of space between buttons
@@ -557,6 +557,8 @@ end
 local ButtonGUI = function()
     if not openGUI then return end
     openGUI, shouldDrawGUI = ImGui.Begin('Button Master', openGUI, ImGuiWindowFlags.NoFocusOnAppearing)
+    lastWindowX, lastWindowY = ImGui.GetWindowPos()
+
     if openGUI and shouldDrawGUI then
         if initialRun then
             ImGui.SetWindowSize(280, 318)
