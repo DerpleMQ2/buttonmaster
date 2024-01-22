@@ -10,6 +10,7 @@
 
 local mq = require('mq')
 local LIP = require('lib/LIP')
+local Icons = require('mq.ICONS')
 require('lib/ed/utils')
 
 ButtonActors = require 'actors'
@@ -54,7 +55,7 @@ local function SaveSettings(doBroadcast)
     mq.pickle(settings_path, settings)
 
     if doBroadcast then
-        --Output(string.format("\aySent Event from(\am%s\ay) event(\at%s\ay)", mq.TLO.Me.DisplayName(), "SaveSettings"))
+        Output(string.format("\aySent Event from(\am%s\ay) event(\at%s\ay)", mq.TLO.Me.DisplayName(), "SaveSettings"))
         ButtonActors.send({ from = mq.TLO.Me.DisplayName(), script = "ButtonMaster", event = "SaveSettings", })
     end
 end
@@ -516,6 +517,15 @@ end
 
 local DrawTabs = function()
     local Set
+    local lockedIcon = settings[CharConfig].Locked and Icons.FA_LOCK .. '##lockTabButton' or Icons.FA_UNLOCK .. '##lockTablButton'
+    if ImGui.Button(lockedIcon) then
+        --ImGuiWindowFlags.NoMove
+        settings[CharConfig].Locked = not settings[CharConfig].Locked
+        if settings[CharConfig].Locked then
+            SaveSettings(true)
+        end
+    end
+    ImGui.SameLine()
     ImGui.Button("Settings")
     ImGui.SameLine()
     DrawTabContextMenu()
@@ -556,7 +566,12 @@ end
 
 local ButtonGUI = function()
     if not openGUI then return end
-    openGUI, shouldDrawGUI = ImGui.Begin('Button Master', openGUI, ImGuiWindowFlags.NoFocusOnAppearing)
+    local flags = ImGuiWindowFlags.NoFocusOnAppearing
+    if not settings[CharConfig] then return end
+
+    if settings[CharConfig].Locked then flags = bit32.bor(flags, ImGuiWindowFlags.NoMove, ImGuiWindowFlags.NoResize) end
+
+    openGUI, shouldDrawGUI = ImGui.Begin('Button Master', openGUI, flags)
     lastWindowX, lastWindowY = ImGui.GetWindowPos()
 
     if openGUI and shouldDrawGUI then
@@ -659,6 +674,8 @@ local function LoadSettings()
         SaveSettings()
     end
 
+    settings[CharConfig].Locked = settings[CharConfig].Locked or false
+
     -- Convert old Cmd1-5 buttons to new Cmd style
     convertOldStyleToNew()
 end
@@ -690,8 +707,14 @@ end
 local script_actor = ButtonActors.register(function(message)
     local msg = message()
 
-    if msg["from"] == mq.TLO.Me.DisplayName() then return end
-    if msg["script"] ~= "ButtonMaster" then return end
+    Output("MSG! " .. msg["script"] .. " " .. msg["from"])
+
+    if msg["from"] == mq.TLO.Me.DisplayName() then
+        return
+    end
+    if msg["script"] ~= "ButtonMaster" then
+        return
+    end
 
     ---@diagnostic disable-next-line: redundant-parameter
     Output(string.format("\ayGot Event from(\am%s\ay) event(\at%s\ay)", msg["from"], msg["event"]))
