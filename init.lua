@@ -63,6 +63,14 @@ local function SaveSettings(doBroadcast)
     end
 end
 
+function TableContains(t, v)
+    if not t then return false end
+    for _, tv in pairs(t) do
+        if tv == v then return true end
+    end
+    return false
+end
+
 -- binds
 local BindBtn = function()
     openGUI = not openGUI
@@ -377,7 +385,13 @@ local DrawEditButtonPopup = function()
         if tmpButton[ButtonKey].ButtonColorRGB ~= nil then
             local tColors = split(tmpButton[ButtonKey].ButtonColorRGB, ",")
             for i, v in ipairs(tColors) do btnColor[i] = tonumber(v / 255) end
+        else
+            btnColor[1] = 0
+            btnColor[2] = 0
+            btnColor[3] = 0
         end
+        local objectID = string.format("##ColorPicker1_%s_%d", editButtonSet, editButtonIndex)
+        ImGui.PushID(objectID)
         local col, used = ImGui.ColorEdit3("Button Color", btnColor, ImGuiColorEditFlags.NoInputs)
         if used then
             editButtonTextChanged = true
@@ -385,11 +399,25 @@ local DrawEditButtonPopup = function()
             tmpButton[ButtonKey].ButtonColorRGB = string.format("%d,%d,%d", math.floor(col[1] * 255),
                 math.floor(col[2] * 255), math.floor(col[3] * 255))
         end
+        ImGui.PopID()
+        if ImGui.BeginPopupContextItem(objectID) then
+            if ImGui.MenuItem("Clear Button Color") then
+                tmpButton[ButtonKey].ButtonColorRGB = nil
+                SaveSettings(true)
+            end
+            ImGui.EndPopup()
+        end
         ImGui.SameLine()
         if tmpButton[ButtonKey].TextColorRGB ~= nil then
             local tColors = split(tmpButton[ButtonKey].TextColorRGB, ",")
             for i, v in ipairs(tColors) do txtColor[i] = tonumber(v / 255) end
+        else
+            txtColor[1] = 1.0
+            txtColor[2] = 1.0
+            txtColor[3] = 1.0
         end
+        objectID = string.format("##ColorPicker2_%s_%d", editButtonSet, editButtonIndex)
+        ImGui.PushID(objectID)
         col, used = ImGui.ColorEdit3("Text Color", txtColor, ImGuiColorEditFlags.NoInputs)
         if used then
             editButtonTextChanged = true
@@ -397,11 +425,29 @@ local DrawEditButtonPopup = function()
             tmpButton[ButtonKey].TextColorRGB = string.format("%d,%d,%d", math.floor(col[1] * 255),
                 math.floor(col[2] * 255), math.floor(col[3] * 255))
         end
+        ImGui.PopID()
+        if ImGui.BeginPopupContextItem(objectID) then
+            if ImGui.MenuItem("Clear Text Color") then
+                tmpButton[ButtonKey].TextColorRGB = nil
+                SaveSettings(true)
+            end
+            ImGui.EndPopup()
+        end
 
         ImGui.SameLine()
         if tmpButton[ButtonKey].Icon then
+            objectID = string.format("##IconPicker_%s_%d", editButtonSet, editButtonIndex)
+            ImGui.PushID(objectID)
             if renderSpellIcon(tmpButton[ButtonKey].Icon, 20, true, "") then
                 picker:SetOpen()
+            end
+            ImGui.PopID()
+            if ImGui.BeginPopupContextItem(objectID) then
+                if ImGui.MenuItem("Clear Icon") then
+                    tmpButton[ButtonKey].Icon = nil
+                    SaveSettings(true)
+                end
+                ImGui.EndPopup()
             end
         else
             if ImGui.Button('', ImVec2(20, 20)) then
@@ -419,10 +465,11 @@ local DrawEditButtonPopup = function()
 
         -- color reset
         ImGui.SameLine()
-        if ImGui.Button("Reset") then
+        if ImGui.Button("Reset All") then
             btnColor, txtColor = {}, {}
             tmpButton[ButtonKey].ButtonColorRGB = nil
             tmpButton[ButtonKey].TextColorRGB = nil
+            tmpButton[ButtonKey].Icon = nil
             editButtonTextChanged = true
         end
 
@@ -582,7 +629,7 @@ local DrawTabs = function()
     if ImGui.BeginTabBar("Tabs") then
         for i, set in ipairs(settings[CharConfig]) do
             if ImGui.BeginTabItem(set) then
-                Set = 'Set_' .. set
+                SetLabel = 'Set_' .. set
 
                 -- tab edit popup
                 if ImGui.BeginPopupContextItem(set) then
@@ -590,13 +637,38 @@ local DrawTabs = function()
                     local tmp, selected = ImGui.InputText("##edit", set, 0)
                     if selected then name = tmp end
                     if ImGui.Button("Save") then
+                        editButtonIndex = 0
+                        editButtonSet = ""
+                        editButtonPopupOpen = false
+                        local newSetLabel = 'Set_' .. name
                         if name ~= nil then
-                            settings[CharConfig][i] =
-                                name -- update the character button set name
-                            settings['Set_' .. name], settings[Set] = settings[Set],
-                                nil  -- move the old button set to the new name
-                            Set = 'Set_' ..
-                                name -- update set to the new name so the button render doesn't fail
+                            -- update the character button set name
+                            settings[CharConfig][i] = name
+
+                            -- move the old button set to the new name
+                            settings[newSetLabel], settings[SetLabel] = settings[SetLabel], nil
+
+                            -- update set names
+                            for idx, oldSetName in ipairs(settings.Sets) do
+                                if oldSetName == set then
+                                    settings.Sets[idx] = name
+                                end
+                            end
+
+                            -- update other chacters who might have been using this same set.
+                            for curKey, curSetting in pairs(settings) do
+                                if curKey:find("^Char.*Config$") then
+                                    for setIdx, oldSetName in ipairs(curSetting) do
+                                        if oldSetName == set then
+                                            Output(string.format("\awUpdating section '\ag%s\aw' renaming \am%s\aw => \at%s", curKey, oldSetName, name))
+                                            settings[curKey][setIdx] = name
+                                        end
+                                    end
+                                end
+                            end
+
+                            -- update set to the new name so the button render doesn't fail
+                            SetLabel = newSetLabel
                             SaveSettings()
                         end
                         ImGui.CloseCurrentPopup()
@@ -604,7 +676,7 @@ local DrawTabs = function()
                     ImGui.EndPopup()
                 end
 
-                DrawButtons(Set)
+                DrawButtons(SetLabel)
                 ImGui.EndTabItem()
             end
         end
@@ -664,6 +736,10 @@ local function convertOldStyleToNew()
 end
 
 local function LoadSettings()
+    editButtonIndex = 0
+    editButtonSet = ""
+    editButtonPopupOpen = false
+
     local config, err = loadfile(settings_path)
     if err or not config then
         local old_settings_path = settings_path:gsub(".lua", ".ini")
