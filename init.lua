@@ -367,7 +367,10 @@ local DrawContextMenu = function(Set, Index, buttonID)
 end
 
 local DrawEditButtonPopup = function()
-    if not editButtonPopupOpen then return end
+    if not editButtonPopupOpen then
+        picker:SetClosed()
+        return
+    end
 
     local ButtonKey = GetButtonSectionKeyBySetIndex(editButtonSet, editButtonIndex)
     local Button = GetButtonBySetIndex(editButtonSet, editButtonIndex)
