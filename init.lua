@@ -510,6 +510,7 @@ local DrawEditButtonPopup = function()
             ImGui.EndTooltip()
         end
         if closeClick then
+            picker:SetClosed()
             tmpButton[ButtonKey] = shallowcopy(Button)
             editButtonPopupOpen = false
             editButtonIndex = 0
@@ -640,6 +641,7 @@ local DrawTabs = function()
                         editButtonIndex = 0
                         editButtonSet = ""
                         editButtonPopupOpen = false
+                        picker:SetClosed()
                         local newSetLabel = 'Set_' .. name
                         if name ~= nil then
                             -- update the character button set name
@@ -739,6 +741,7 @@ local function LoadSettings()
     editButtonIndex = 0
     editButtonSet = ""
     editButtonPopupOpen = false
+    picker:SetClosed()
 
     local config, err = loadfile(settings_path)
     if err or not config then

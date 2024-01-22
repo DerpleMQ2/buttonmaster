@@ -115,6 +115,10 @@ function IconPicker:SetOpen()
     self.Open, self.Draw = true, true
 end
 
+function IconPicker:SetClosed()
+    self.Open, self.Draw = false, false
+end
+
 function IconPicker:ClearSelection()
     self.Selected = nil
 end
