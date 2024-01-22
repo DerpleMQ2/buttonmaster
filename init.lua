@@ -669,16 +669,6 @@ local function LoadSettings()
             settings_path, old_settings_path)
         if file_exists(old_settings_path) then
             settings = LIP.load(old_settings_path)
-
-            -- fix up any numerical labels.
-            for key, value in pairs(settings) do
-                if type(value['Label']) == 'number' then
-                    Output(string.format("\ayDetected a numerical label on button %s - changing it to a string!", key))
-                    -- this is not valid all labels should be stirngs.
-                    value.Label = tostring(value.Label)
-                end
-            end
-
             SaveSettings(false)
         else
             printf("\ayUnable to load legacy settings file(%s), creating a new config!", old_settings_path)
@@ -722,6 +712,21 @@ local function LoadSettings()
     end
 
     settings[CharConfig].Locked = settings[CharConfig].Locked or false
+
+    -- fix up any numerical labels.
+    local needsSave = false
+    for key, value in pairs(settings) do
+        if type(value['Label']) == 'number' then
+            Output(string.format("\ayDetected a numerical label on button %s - changing it to a string!", key))
+            -- this is not valid all labels should be stirngs.
+            value.Label = tostring(value.Label)
+            needsSave = true
+        end
+    end
+
+    if needsSave then
+        SaveSettings(true)
+    end
 
     -- Convert old Cmd1-5 buttons to new Cmd style
     convertOldStyleToNew()
