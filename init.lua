@@ -96,7 +96,7 @@ local function renderSpellIcon(id, size, overlayButton, buttonLabel)
         ImGui.SetCursorPos(cursor_x + midX, cursor_y + midY)
         ImGui.Text(buttonLabel)
         ImGui.SetCursorPos(cursor_x, cursor_y)
-        clicked = ImGui.InvisibleButton(buttonLabel, size, size)
+        clicked = ImGui.Selectable('', false, ImGuiSelectableFlags.DontClosePopups, size, size)
     end
     return clicked
 end
@@ -270,7 +270,7 @@ local DrawCreateTab = function()
     end
 end
 
-local DrawContextMenu = function(Set, Index)
+local DrawContextMenu = function(Set, Index, buttonID)
     local openPopup = false
     local Button = GetButtonBySetIndex(Set, Index)
 
@@ -283,9 +283,8 @@ local DrawContextMenu = function(Set, Index)
         end
     end
 
-    if ImGui.BeginPopupContextItem() then
+    if ImGui.BeginPopupContextItem(buttonID) then
         --editPopupName = "edit_button_popup|" .. Index
-
         -- only list hotkeys that aren't already assigned to the button set
         if getTableSize(unassigned) > 0 then
             if ImGui.BeginMenu("Assign Hotkey") then
@@ -512,11 +511,14 @@ local DrawButtons = function(Set)
 
         ImGui.SetWindowFontScale(settings['Global']['Font'] or 1)
         local clicked
+        local buttonID = string.format("##Button_%s_%d", Set, ButtonIndex)
+        ImGui.PushID(buttonID)
         if Button.Icon then
             clicked = renderSpellIcon(Button.Icon, btnSize, true, tostring(Button.Label):gsub(" ", "\n"))
         else
             clicked = ImGui.Button(tostring(Button.Label):gsub(" ", "\n"), btnSize, btnSize)
         end
+        ImGui.PopID()
         ImGui.SetWindowFontScale(1)
 
         -- pop button styles as necessary
@@ -553,7 +555,7 @@ local DrawButtons = function(Set)
 
             -- render button pieces
             DrawButtonTooltip(Button)
-            DrawContextMenu(Set, ButtonIndex)
+            DrawContextMenu(Set, ButtonIndex, buttonID)
         end
 
         -- button grid
@@ -583,7 +585,7 @@ local DrawTabs = function()
                 Set = 'Set_' .. set
 
                 -- tab edit popup
-                if ImGui.BeginPopupContextItem() then
+                if ImGui.BeginPopupContextItem(set) then
                     ImGui.Text("Edit Name:")
                     local tmp, selected = ImGui.InputText("##edit", set, 0)
                     if selected then name = tmp end
@@ -759,7 +761,7 @@ end
 local script_actor = ButtonActors.register(function(message)
     local msg = message()
 
-    Output("MSG! " .. msg["script"] .. " " .. msg["from"])
+    --Output("MSG! " .. msg["script"] .. " " .. msg["from"])
 
     if msg["from"] == mq.TLO.Me.DisplayName() then
         return
