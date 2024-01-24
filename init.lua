@@ -279,7 +279,6 @@ local DrawCreateTab = function()
 end
 
 local DrawContextMenu = function(Set, Index, buttonID)
-    local openPopup = false
     local Button = GetButtonBySetIndex(Set, Index)
 
     local unassigned = {}
@@ -580,7 +579,8 @@ local DrawButtons = function(Set)
             local cmds = split(Button.Cmd, "\n")
             for i, c in ipairs(cmds) do
                 if c:find('^/') then
-                    mq.cmdf(c)
+                    -- don't use cmdf here because users might have %'s in their commands.
+                    mq.cmd(c)
                 else
                     Output(string.format('\arInvalid command on Line %d : \ax%s', i, c))
                 end
