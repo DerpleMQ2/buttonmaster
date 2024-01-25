@@ -12,6 +12,7 @@ local mq             = require('mq')
 local LIP            = require('lib/LIP')
 local Icons          = require('mq.ICONS')
 local picker         = require('lib.IconPicker').new()
+local btnUtils       = require('lib.buttonUtils')
 local animSpellIcons = mq.FindTextureAnimation('A_SpellIcons')
 
 require('lib/ed/utils')
@@ -19,7 +20,7 @@ require('lib/ed/utils')
 ButtonActors = require 'actors'
 
 -- globals
-local CharConfig = 'Char_' .. mq.TLO.EverQuest.Server() .. '_' .. mq.TLO.Me.CleanName() .. '_Config'
+local CharConfig = string.format("%s_%s", mq.TLO.EverQuest.Server(), mq.TLO.Me.CleanName())
 local DefaultSets = { 'Primary', 'Movement', }
 local openGUI = true
 local shouldDrawGUI = true
@@ -50,7 +51,14 @@ local editButtonTextChanged = false
 local buttonSizeDirty = false
 
 -- helpers
-local Output = function(msg) print('\aw[' .. mq.TLO.Time() .. '] [\aoButton Master\aw] ::\a-t ' .. msg) end
+local Output = function(msg, ...)
+    local formatted = msg
+    if ... then
+        formatted = string.format(msg, ...)
+    end
+
+    printf('\aw[' .. mq.TLO.Time() .. '] [\aoButton Master\aw] ::\a-t %s', formatted)
+end
 
 local function SaveSettings(doBroadcast)
     if doBroadcast == nil then doBroadcast = true end
@@ -58,7 +66,7 @@ local function SaveSettings(doBroadcast)
     mq.pickle(settings_path, settings)
 
     if doBroadcast then
-        Output(string.format("\aySent Event from(\am%s\ay) event(\at%s\ay)", mq.TLO.Me.DisplayName(), "SaveSettings"))
+        Output("\aySent Event from(\am%s\ay) event(\at%s\ay)", mq.TLO.Me.DisplayName(), "SaveSettings")
         ButtonActors.send({ from = mq.TLO.Me.DisplayName(), script = "ButtonMaster", event = "SaveSettings", })
     end
 end
@@ -71,21 +79,43 @@ function TableContains(t, v)
     return false
 end
 
+function dump(o)
+    if type(o) == 'table' then
+        local s = '{ \n'
+        for k, v in pairs(o) do
+            if type(k) ~= 'number' then k = '"' .. k .. '"' end
+            s = s .. '[' .. k .. '] = ' .. dump(v) .. ',\n'
+        end
+        return s .. '} \n'
+    else
+        return tostring(o)
+    end
+end
+
+--[[
+mq.bind("/btnenc", function(toEnc)
+    print("Input Table:\n" .. dump(settings[toEnc]))
+    local encstr = btnUtils.encodeTable(settings[toEnc])
+    print("Encoded Button: " .. encstr)
+    local decodedTable = btnUtils.decodeTable(encstr)
+    print("Decoded Table:\n" .. dump(decodedTable))
+end)
+]]
 -- binds
 local BindBtn = function()
     openGUI = not openGUI
 end
 
 local GetButtonBySetIndex = function(Set, Index)
-    return settings[settings[Set][Index]] or { Unassigned = true, Label = tostring(Index), }
+    return settings.Buttons[settings.Sets[Set][Index]] or { Unassigned = true, Label = tostring(Index), }
 end
 
 local GetButtonSectionKeyBySetIndex = function(Set, Index)
-    local key = settings[Set][Index]
+    local key = settings.Sets[Set][Index]
 
     -- if the key doesn't exist, get the current button counter and add 1
     if key == nil then
-        key = 'Button_' .. tonumber(settings['Global']['ButtonCount'] + 1)
+        key = 'Button_' .. tonumber(settings.Global.ButtonCount + 1)
     end
     return key
 end
@@ -98,7 +128,6 @@ local function renderSpellIcon(id, size, overlayButton, buttonLabel)
     ImGui.DrawTextureAnimation(animSpellIcons, size, size)
     if overlayButton then
         local label_x, label_y = ImGui.CalcTextSize(buttonLabel)
-        local style = ImGui.GetStyle()
         local midX = math.max((size - label_x) / 2, 0)
         local midY = (size - label_y) / 2
         ImGui.SetCursorPos(cursor_x + midX, cursor_y + midY)
@@ -127,7 +156,7 @@ local RecalculateVisibleButtons = function(Set)
     local style = ImGui.GetStyle()                -- this will get us ItemSpacing.x which is the amount of space between buttons
 
     -- global button configs
-    local btnSize = (settings['Global']['ButtonSize'] or 6) * 10
+    local btnSize = (settings.Global.ButtonSize or 6) * 10
     cachedCols = math.floor((lastWindowWidth - cursorX) / (btnSize + style.ItemSpacing.x))
     cachedRows = math.floor((lastWindowHeight - cursorY) / (btnSize + style.ItemSpacing.y))
 
@@ -154,11 +183,11 @@ local DrawTabContextMenu = function()
     local max = 1
     local unassigned = {}
     local keys = {}
-    for k, v in ipairs(settings[CharConfig]) do
+    for k, v in ipairs(settings.Characters[CharConfig].Sets) do
         keys[v] = true
         max = k + 1
     end
-    for k, v in pairs(settings['Sets']) do
+    for k, v in pairs(settings.Sets) do
         if keys[v] == nil then unassigned[k] = v end
     end
 
@@ -167,7 +196,7 @@ local DrawTabContextMenu = function()
             if ImGui.BeginMenu("Add Set") then
                 for k, v in pairs(unassigned) do
                     if ImGui.MenuItem(v) then
-                        settings[CharConfig][max] = v
+                        settings.Characters[CharConfig].Sets[max] = v
                         SaveSettings()
                         break
                     end
@@ -177,9 +206,9 @@ local DrawTabContextMenu = function()
         end
 
         if ImGui.BeginMenu("Remove Set") then
-            for i, v in ipairs(settings[CharConfig]) do
+            for i, v in ipairs(settings.Characters[CharConfig].Sets) do
                 if ImGui.MenuItem(v) then
-                    table.remove(settings[CharConfig], i)
+                    table.remove(settings.Characters[CharConfig].Sets, i)
                     SaveSettings()
                     break
                 end
@@ -193,9 +222,9 @@ local DrawTabContextMenu = function()
 
         if ImGui.BeginMenu("Button Size") then
             for i = 3, 10 do
-                local checked = settings['Global']['ButtonSize'] == i
+                local checked = settings.Global.ButtonSize == i
                 if ImGui.MenuItem(tostring(i), nil, checked) then
-                    settings['Global']['ButtonSize'] = i
+                    settings.Global.ButtonSize = i
                     buttonSizeDirty = true
                     SaveSettings()
                     break
@@ -238,9 +267,9 @@ local DrawTabContextMenu = function()
 
         if ImGui.BeginMenu("Font Scale") then
             for i, v in ipairs(font_scale) do
-                local checked = settings['Global']['Font'] == v.size
+                local checked = settings.Global.Font == v.size
                 if ImGui.MenuItem(v.label, nil, checked) then
-                    settings['Global']['Font'] = v.size
+                    settings.Global.Font = v.size
                     SaveSettings()
                     break
                 end
@@ -264,10 +293,8 @@ local DrawCreateTab = function()
         if selected then name = tmp end
         if ImGui.Button("Save") then
             if name ~= nil and name:len() > 0 then
-                settings[CharConfig][getTableSize(settings[CharConfig]) + 1] =
-                    name -- update the character button set name
-                settings['Sets'][getTableSize(settings['Sets']) + 1] = name
-                settings['Set_' .. name] = {}
+                table.insert(settings.Characters[CharConfig].Sets, name)
+                settings.Sets[name] = {}
                 SaveSettings()
             else
                 Output("\arError Saving Set: Name cannot be empty.\ax")
@@ -283,9 +310,9 @@ local DrawContextMenu = function(Set, Index, buttonID)
 
     local unassigned = {}
     local keys = {}
-    for _, v in pairs(settings[Set]) do keys[v] = true end
-    for k, v in pairs(settings) do
-        if k:find("^(Button_)") and keys[k] == nil then
+    for _, v in pairs(settings.Sets[Set]) do keys[v] = true end
+    for k, v in pairs(settings.Buttons) do
+        if keys[k] == nil then
             unassigned[k] = v
         end
     end
@@ -317,24 +344,12 @@ local DrawContextMenu = function(Set, Index, buttonID)
                     local value = unassigned[key]
                     if value ~= nil then
                         if ImGui.MenuItem(tostring(value.Label)) then
-                            settings[Set][Index] = key
+                            settings.Sets[Set][Index] = key
                             SaveSettings()
                             break
                         end
                     end
                 end
-                -- hytiek: END ADD
-                --[[ original display code:
-                    for k, v in pairs(unassigned) do
-                    if ImGui.MenuItem(v.Label) then
-                        settings[Set][Index] = k
-                        SaveSettings()
-                        break
-                    end
-                end
-                ]]
-                --
-
                 ImGui.EndMenu()
             end
         end
@@ -356,7 +371,7 @@ local DrawContextMenu = function(Set, Index, buttonID)
                 editButtonSet = Set
             end
             if ImGui.MenuItem("Unassign") then
-                settings[Set][Index] = nil
+                settings.Sets[Set][Index] = nil
                 SaveSettings()
             end
         end
@@ -482,18 +497,20 @@ local DrawEditButtonPopup = function()
         local xPos = ImGui.GetCursorPosX()
         local footerHeight = 110
         local editHeight = ImGui.GetWindowHeight() - xPos - footerHeight
-        tmpButton[ButtonKey].Cmd, textChanged = ImGui.InputTextMultiline("##_Cmd_Edit", tmpButton[ButtonKey].Cmd or "", ImVec2(ImGui.GetWindowWidth() * 0.98, editHeight))
+        tmpButton[ButtonKey].Cmd, textChanged = ImGui.InputTextMultiline("##_Cmd_Edit", tmpButton[ButtonKey].Cmd or "",
+            ImVec2(ImGui.GetWindowWidth() * 0.98, editHeight))
         editButtonTextChanged = editButtonTextChanged or textChanged
 
         -- save button
         if ImGui.Button("Save") then
             -- make sure the button label isn't nil/empty/spaces
             if tmpButton[ButtonKey].Label ~= nil and tmpButton[ButtonKey].Label:gsub("%s+", ""):len() > 0 then
-                settings[editButtonSet][editButtonIndex] = ButtonKey    -- add the button key for this button set index
-                settings[ButtonKey] = shallowcopy(tmpButton[ButtonKey]) -- store the tmp button into the settings table
-                settings[ButtonKey].Unassigned = nil                    -- clear the unassigned flag
+                settings.Sets[editButtonSet][editButtonIndex] =
+                    ButtonKey                                                   -- add the button key for this button set index
+                settings.Buttons[ButtonKey] = shallowcopy(tmpButton[ButtonKey]) -- store the tmp button into the settings table
+                settings.Buttons[ButtonKey].Unassigned = nil                    -- clear the unassigned flag
                 -- if we're saving this, update the button counter
-                settings['Global']['ButtonCount'] = settings['Global']['ButtonCount'] + 1
+                settings.Global.ButtonCount = settings.Global.ButtonCount + 1
                 SaveSettings()
                 editButtonTextChanged = false
             else
@@ -528,8 +545,8 @@ local DrawEditButtonPopup = function()
             ImGui.EndTooltip()
         end
         if clearClick then
-            tmpButton[ButtonKey] = nil                     -- clear the buffer
-            settings[editButtonSet][editButtonIndex] = nil -- clear the button set index
+            tmpButton[ButtonKey] = nil                          -- clear the buffer
+            settings.Sets[editButtonSet][editButtonIndex] = nil -- clear the button set index
         end
     end
     ImGui.End()
@@ -540,7 +557,7 @@ local DrawButtons = function(Set)
         RecalculateVisibleButtons(Set)
     end
 
-    local btnSize = (settings['Global']['ButtonSize'] or 6) * 10
+    local btnSize = (settings.Global.ButtonSize or 6) * 10
 
     local renderButtonCount = visibleButtonCount
 
@@ -559,7 +576,7 @@ local DrawButtons = function(Set)
                 tonumber(Colors[3] / 255), 1)
         end
 
-        ImGui.SetWindowFontScale(settings['Global']['Font'] or 1)
+        ImGui.SetWindowFontScale(settings.Global.Font or 1)
         local clicked
         local buttonID = string.format("##Button_%s_%d", Set, ButtonIndex)
         ImGui.PushID(buttonID)
@@ -582,7 +599,7 @@ local DrawButtons = function(Set)
                     -- don't use cmdf here because users might have %'s in their commands.
                     mq.cmd(c)
                 else
-                    Output(string.format('\arInvalid command on Line %d : \ax%s', i, c))
+                    Output('\arInvalid command on Line %d : \ax%s', i, c)
                 end
             end
         else
@@ -598,7 +615,8 @@ local DrawButtons = function(Set)
                     ---@diagnostic disable-next-line: undefined-field
                     local num = payload.Data;
                     -- swap the keys in the button set
-                    settings[Set][num], settings[Set][ButtonIndex] = settings[Set][ButtonIndex], settings[Set][num]
+                    settings.Sets[Set][num], settings.Sets[Set][ButtonIndex] = settings.Sets[Set][ButtonIndex],
+                        settings.Sets[Set][num]
                     SaveSettings()
                 end
                 ImGui.EndDragDropTarget()
@@ -616,11 +634,12 @@ end
 
 local DrawTabs = function()
     local Set
-    local lockedIcon = settings[CharConfig].Locked and Icons.FA_LOCK .. '##lockTabButton' or Icons.FA_UNLOCK .. '##lockTablButton'
+    local lockedIcon = settings.Characters[CharConfig].Locked and Icons.FA_LOCK .. '##lockTabButton' or
+        Icons.FA_UNLOCK .. '##lockTablButton'
     if ImGui.Button(lockedIcon) then
         --ImGuiWindowFlags.NoMove
-        settings[CharConfig].Locked = not settings[CharConfig].Locked
-        if settings[CharConfig].Locked then
+        settings.Characters[CharConfig].Locked = not settings.Characters[CharConfig].Locked
+        if settings.Characters[CharConfig].Locked then
             SaveSettings(true)
         end
     end
@@ -631,9 +650,9 @@ local DrawTabs = function()
     DrawCreateTab()
 
     if ImGui.BeginTabBar("Tabs") then
-        for i, set in ipairs(settings[CharConfig]) do
+        for i, set in ipairs(settings.Characters[CharConfig].Sets) do
             if ImGui.BeginTabItem(set) then
-                SetLabel = 'Set_' .. set
+                SetLabel = set
 
                 -- tab edit popup
                 if ImGui.BeginPopupContextItem(set) then
@@ -645,13 +664,13 @@ local DrawTabs = function()
                         editButtonSet = ""
                         editButtonPopupOpen = false
                         picker:SetClosed()
-                        local newSetLabel = 'Set_' .. name
+                        local newSetLabel = name
                         if name ~= nil then
                             -- update the character button set name
-                            settings[CharConfig][i] = name
+                            settings.Characters[CharConfig].Sets[i] = name
 
                             -- move the old button set to the new name
-                            settings[newSetLabel], settings[SetLabel] = settings[SetLabel], nil
+                            settings.Sets[newSetLabel], settings.Sets[SetLabel] = settings.Sets[SetLabel], nil
 
                             -- update set names
                             for idx, oldSetName in ipairs(settings.Sets) do
@@ -661,13 +680,13 @@ local DrawTabs = function()
                             end
 
                             -- update other chacters who might have been using this same set.
-                            for curKey, curSetting in pairs(settings) do
-                                if curKey:find("^Char.*Config$") then
-                                    for setIdx, oldSetName in ipairs(curSetting) do
-                                        if oldSetName == set then
-                                            Output(string.format("\awUpdating section '\ag%s\aw' renaming \am%s\aw => \at%s", curKey, oldSetName, name))
-                                            settings[curKey][setIdx] = name
-                                        end
+                            for curCharKey, curCharData in pairs(settings.Characters) do
+                                for setIdx, oldSetName in ipairs(curCharData.Sets) do
+                                    if oldSetName == set then
+                                        Output(string.format(
+                                            "\awUpdating section '\ag%s\aw' renaming \am%s\aw => \at%s", curCharKey,
+                                            oldSetName, name))
+                                        settings.Characters[curCharKey].Sets[setIdx] = name
                                     end
                                 end
                             end
@@ -692,9 +711,12 @@ end
 local ButtonGUI = function()
     if not openGUI then return end
     local flags = ImGuiWindowFlags.NoFocusOnAppearing
-    if not settings[CharConfig] then return end
+    if not settings.Characters[CharConfig] then return end
 
-    if settings[CharConfig].Locked then flags = bit32.bor(flags, ImGuiWindowFlags.NoMove, ImGuiWindowFlags.NoResize) end
+    if settings.Characters[CharConfig].Locked then
+        flags = bit32.bor(flags, ImGuiWindowFlags.NoMove,
+            ImGuiWindowFlags.NoResize)
+    end
 
     openGUI, shouldDrawGUI = ImGui.Begin('Button Master', openGUI, flags)
     lastWindowX, lastWindowY = ImGui.GetWindowPos()
@@ -718,12 +740,14 @@ end
 
 local function convertOldStyleToNew()
     local needsSave = false
+    -- version 2
     -- Run through all settings and make sure they are in the new format.
     for key, value in pairs(settings) do
         -- TODO: Make buttons a seperate table instead of doing the string compare crap.
         if key:find("^(Button_)") and value.Cmd1 or value.Cmd2 or value.Cmd3 or value.Cmd4 or value.Cmd5 then
-            Output(string.format("Key: %s Needs Converted!", key))
-            value.Cmd  = string.format("%s\n%s\n%s\n%s\n%s\n%s", value.Cmd or '', value.Cmd1 or '', value.Cmd2 or '', value.Cmd3 or '', value.Cmd4 or '', value.Cmd5 or '')
+            Output("Key: %s Needs Converted!", key)
+            value.Cmd  = string.format("%s\n%s\n%s\n%s\n%s\n%s", value.Cmd or '', value.Cmd1 or '', value.Cmd2 or '',
+                value.Cmd3 or '', value.Cmd4 or '', value.Cmd5 or '')
             value.Cmd  = value.Cmd:gsub("\n+", "\n")
             value.Cmd  = value.Cmd:gsub("\n$", "")
             value.Cmd  = value.Cmd:gsub("^\n", "")
@@ -735,7 +759,54 @@ local function convertOldStyleToNew()
             needsSave  = true
         end
     end
+
+    -- version 3
+    -- Okay now that a similar but lua-based config is stabalized the next pass is going to be
+    -- cleaning up the data model so we aren't doing a ton of string compares all over.
+    local newSettings = {}
+    newSettings.Buttons = {}
+    newSettings.Sets = {}
+    newSettings.Characters = {}
+    newSettings.Global = settings.Global
+    for key, value in pairs(settings) do
+        local sStart, sEnd = key:find("^Button_")
+        if sStart then
+            local newKey = key --key:sub(sEnd + 1)
+            Output("Old Key: \am%s\ax, New Key: \at%s\ax", key, newKey)
+            newSettings.Buttons[newKey] = newSettings.Buttons[newKey] or {}
+            for subKey, subValue in pairs(value) do
+                newSettings.Buttons[newKey][subKey] = tostring(subValue)
+            end
+            needsSave = true
+        end
+        sStart, sEnd = key:find("^Set_")
+        if sStart then
+            local newKey = key:sub(sEnd + 1)
+            Output("Old Key: \am%s\ax, New Key: \at%s\ax", key, newKey)
+            newSettings.Sets[newKey] = value
+            needsSave                = true
+        end
+        sStart, sEnd = key:find("^Char_(.*)_Config")
+        if sStart then
+            local newKey = key:sub(sStart + 5, sEnd - 7)
+            Output("Old Key: \am%s\ax, New Key: \at%s\ax", key, newKey)
+            newSettings.Characters[newKey] = newSettings.Characters[newKey] or {}
+            for subKey, subValue in pairs(value) do
+                newSettings.Characters[newKey].Sets = newSettings.Characters[newKey].Sets or {}
+                if type(subKey) == "number" then
+                    table.insert(newSettings.Characters[newKey].Sets, subValue)
+                else
+                    newSettings.Characters[newKey][subKey] = subValue
+                end
+            end
+
+            needsSave = true
+        end
+    end
+
     if needsSave then
+        mq.pickle(mq.configDir .. "/ButtonMaster-old.lua", settings)
+        settings = newSettings
         SaveSettings(false)
     end
 end
@@ -761,26 +832,34 @@ local function LoadSettings()
                     ButtonSize = 6,
                     ButtonCount = 4,
                 },
-                Sets = { 'Primary', 'Movement', },
-                Set_Primary = { 'Button_1', 'Button_2', 'Button_3', },
-                Set_Movement = { 'Button_4', },
-                Button_1 = {
-                    Label = 'Burn (all)',
-                    Cmd = '/bcaa //burn\n/timed 500 /bcaa //burn',
+                Sets = {
+                    ['Primary'] = { 'Button_1', 'Button_2', 'Button_3', },
+                    ['Movement'] = { 'Button_4', },
                 },
-                Button_2 = {
-                    Label = 'Pause (all)',
-                    Cmd = '/bcaa //multi ; /twist off ; /mqp on',
+                Buttons = {
+                    Button_1 = {
+                        Label = 'Burn (all)',
+                        Cmd = '/bcaa //burn\n/timed 500 /bcaa //burn',
+                    },
+                    Button_2 = {
+                        Label = 'Pause (all)',
+                        Cmd = '/bcaa //multi ; /twist off ; /mqp on',
+                    },
+                    Button_3 = {
+                        Label = 'Unpause (all)',
+                        Cmd = '/bcaa //mqp off',
+                    },
+                    Button_4 = {
+                        Label = 'Nav Target (bca)',
+                        Cmd = '/bca //nav id ${Target.ID}',
+                    },
                 },
-                Button_3 = {
-                    Label = 'Unpause (all)',
-                    Cmd = '/bcaa //mqp off',
-                },
-                Button_4 = {
-                    Label = 'Nav Target (bca)',
-                    Cmd = '/bca //nav id ${Target.ID}',
-                },
-                [CharConfig] = DefaultSets,
+                Characters = {
+                    [CharConfig] = {
+                        Sets = DefaultSets,
+                        Locked = false,
+                    }
+                }
             }
             SaveSettings()
         end
@@ -788,37 +867,22 @@ local function LoadSettings()
         settings = config()
     end
 
+    -- Convert old Cmd1-5 buttons to new Cmd style
+    convertOldStyleToNew()
+
     -- if this character doesn't have the sections in the ini, create them
-    if settings[CharConfig] == nil then
-        settings[CharConfig] = settings.DefaultSets or DefaultSets -- use user defined Defaults before hardcoded ones.
+    if settings.Characters[CharConfig] == nil then
+        settings.Characters[CharConfig] = { Sets = settings.DefaultSets or DefaultSets, Locked = false } -- use user defined Defaults before hardcoded ones.
         initialRun = true
-        SaveSettings()
-    end
-
-    settings[CharConfig].Locked = settings[CharConfig].Locked or false
-
-    -- fix up any numerical labels.
-    local needsSave = false
-    for key, value in pairs(settings) do
-        if type(value['Label']) == 'number' then
-            Output(string.format("\ayDetected a numerical label on button %s - changing it to a string!", key))
-            -- this is not valid all labels should be stirngs.
-            value.Label = tostring(value.Label)
-            needsSave = true
-        end
-    end
-
-    if needsSave then
         SaveSettings(true)
     end
 
-    -- Convert old Cmd1-5 buttons to new Cmd style
-    convertOldStyleToNew()
+    settings.Characters[CharConfig].Locked = settings.Characters[CharConfig].Locked or false
 end
 
 local Setup = function()
     LoadSettings()
-    Output('\ayButton Master by (\a-to_O\ay) Special.Ed, Derple (\a-to_O\ay) - \atLoaded ' .. settings_path)
+    Output('\ayButton Master v2 by (\a-to_O\ay) Derple, Special.Ed (\a-to_O\ay) - \atLoaded ' .. settings_path)
 
     mq.imgui.init('ButtonGUI', ButtonGUI)
     mq.bind('/btn', BindBtn)
@@ -852,8 +916,7 @@ local script_actor = ButtonActors.register(function(message)
         return
     end
 
-    ---@diagnostic disable-next-line: redundant-parameter
-    Output(string.format("\ayGot Event from(\am%s\ay) event(\at%s\ay)", msg["from"], msg["event"]))
+    Output("\ayGot Event from(\am%s\ay) event(\at%s\ay)", msg["from"], msg["event"])
 
     if msg["event"] == "SaveSettings" then
         LoadSettings()
