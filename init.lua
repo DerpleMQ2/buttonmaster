@@ -22,8 +22,14 @@ ButtonActors = require 'actors'
 -- globals
 local CharConfig = string.format("%s_%s", mq.TLO.EverQuest.Server(), mq.TLO.Me.CleanName())
 local DefaultSets = { 'Primary', 'Movement', }
+
+-- [[ UI ]] --
 local openGUI = true
 local shouldDrawGUI = true
+local importObjectPopupOpen = false
+local editButtonPopupOpen = false
+
+-- [[ Global Objects ]] --
 local initialRun = false
 local updateWindowPosSize = false
 local newWidth = 0
@@ -40,18 +46,21 @@ local lastWindowWidth = 0
 local lastWindowX = 0
 local lastWindowY = 0
 local visibleButtonCount = 0
-local editTabPopup = "edit_tab_popup"
-local name
-local settings_path = mq.configDir .. '/ButtonMaster.lua'
-local settings = {}
-local editButtonPopupOpen = false
 local editButtonSet = ""
 local editButtonIndex = 0
 local editButtonTextChanged = false
 local buttonSizeDirty = false
+local editTabPopup = "edit_tab_popup"
+local name
+local settings_path = mq.configDir .. '/ButtonMaster.lua'
+local settings = {}
+local importText = ""
+local decodedObject = {}
+local validDecode = false
+local importTextChanged = false
 
 -- helpers
-local Output = function(msg, ...)
+local function Output(msg, ...)
     local formatted = msg
     if ... then
         formatted = string.format(msg, ...)
@@ -71,56 +80,80 @@ local function SaveSettings(doBroadcast)
     end
 end
 
-function TableContains(t, v)
-    if not t then return false end
-    for _, tv in pairs(t) do
-        if tv == v then return true end
-    end
-    return false
-end
-
-function dump(o)
-    if type(o) == 'table' then
-        local s = '{ \n'
-        for k, v in pairs(o) do
-            if type(k) ~= 'number' then k = '"' .. k .. '"' end
-            s = s .. '[' .. k .. '] = ' .. dump(v) .. ',\n'
-        end
-        return s .. '} \n'
-    else
-        return tostring(o)
-    end
-end
-
---[[
-mq.bind("/btnenc", function(toEnc)
-    print("Input Table:\n" .. dump(settings[toEnc]))
-    local encstr = btnUtils.encodeTable(settings[toEnc])
-    print("Encoded Button: " .. encstr)
-    local decodedTable = btnUtils.decodeTable(encstr)
-    print("Decoded Table:\n" .. dump(decodedTable))
-end)
-]]
 -- binds
-local BindBtn = function()
+local function BindBtn()
     openGUI = not openGUI
 end
 
-local GetButtonBySetIndex = function(Set, Index)
+local function GetButtonBySetIndex(Set, Index)
     return settings.Buttons[settings.Sets[Set][Index]] or { Unassigned = true, Label = tostring(Index), }
 end
 
-local GetButtonSectionKeyBySetIndex = function(Set, Index)
-    local key = settings.Sets[Set][Index]
+local function ExportButtonToClipBoard(button)
+    local sharableButton = { Type = "Button", Button = button, }
+    ImGui.SetClipboardText(btnUtils.encodeTable(sharableButton))
+    Output("Button: '%s' has been copied to your clipboard!", button.Label)
+    local printableButton = btnUtils.dumpTable(sharableButton):gsub("\n/", "\\n/")
+    Output('\n' .. printableButton)
+end
 
-    -- if the key doesn't exist, get the current button counter and add 1
-    if key == nil then
-        key = 'Button_' .. tonumber(settings.Global.ButtonCount + 1)
+local function GenerateButtonKey()
+    return 'Button_' .. tonumber(settings.Global.ButtonCount + 1)
+end
+
+local function ImportButtonAndSave(button, save)
+    local key = GenerateButtonKey()
+    settings.Buttons[key] = button
+    settings.Global.ButtonCount = settings.Global.ButtonCount + 1
+    if save then
+        SaveSettings(true)
     end
     return key
 end
 
-local function renderSpellIcon(id, size, overlayButton, buttonLabel)
+local function ExportSetToClipBoard(setKey)
+    local sharableSet = { Type = "Set", Key = setKey, Set = {}, Buttons = {}, }
+    for index, btnName in pairs(settings.Sets[setKey]) do
+        sharableSet.Set[index] = btnName
+    end
+    for _, buttonKey in pairs(settings.Sets[setKey] or {}) do
+        sharableSet.Buttons[buttonKey] = settings.Buttons[buttonKey]
+    end
+    ImGui.SetClipboardText(btnUtils.encodeTable(sharableSet))
+end
+
+local function importSetAndSave(sharableSet)
+    -- is setname unqiue?
+    local setName = sharableSet.Key
+    if settings.Sets[setName] ~= nil then
+        local newSetName = setName .. "_Imported_" .. os.date("%m-%d-%y-%H-%M-%S")
+        Output("\ayImport Set Warning: Set name: \at%s\ay already exists renaming it to \at%s\ax", setName, newSetName)
+        setName = newSetName
+    end
+
+    settings.Sets[setName] = {}
+    for index, btnName in pairs(sharableSet.Set) do
+        local newButtonName = ImportButtonAndSave(sharableSet.Buttons[btnName], false)
+        settings.Sets[setName][index] = newButtonName
+    end
+
+    -- add set to user
+    table.insert(settings.Characters[CharConfig].Sets, setName)
+
+    SaveSettings(true)
+end
+
+local function GetButtonSectionKeyBySetIndex(Set, Index)
+    local key = settings.Sets[Set][Index]
+
+    -- if the key doesn't exist, get the current button counter and add 1
+    if key == nil then
+        key = GenerateButtonKey()
+    end
+    return key
+end
+
+local function RenderSpellIcon(id, size, overlayButton, buttonLabel)
     local cursor_x, cursor_y = ImGui.GetCursorPos()
     -- icon
     local clicked = false
@@ -138,7 +171,7 @@ local function renderSpellIcon(id, size, overlayButton, buttonLabel)
     return clicked
 end
 
-local DrawButtonTooltip = function(Button)
+local function DrawButtonTooltip(Button)
     -- hover tooltip
     if Button.Unassigned == nil and ImGui.IsItemHovered() then
         ImGui.BeginTooltip()
@@ -147,7 +180,17 @@ local DrawButtonTooltip = function(Button)
     end
 end
 
-local RecalculateVisibleButtons = function(Set)
+local function Tooltip(desc)
+    if ImGui.IsItemHovered() then
+        ImGui.BeginTooltip()
+        ImGui.PushTextWrapPos(ImGui.GetFontSize() * 25.0)
+        ImGui.Text(desc)
+        ImGui.PopTextWrapPos()
+        ImGui.EndTooltip()
+    end
+end
+
+local function RecalculateVisibleButtons(Set)
     buttonSizeDirty = false
     lastWindowWidth = ImGui.GetWindowWidth()
     lastWindowHeight = ImGui.GetWindowHeight()
@@ -177,27 +220,27 @@ local RecalculateVisibleButtons = function(Set)
     visibleButtonCount = math.min(math.max(count, lastAssignedButton), 100)
 end
 
-local DrawTabContextMenu = function()
+local function DrawTabContextMenu()
     local openPopup = false
 
-    local max = 1
     local unassigned = {}
-    local keys = {}
-    for k, v in ipairs(settings.Characters[CharConfig].Sets) do
-        keys[v] = true
-        max = k + 1
+    local charLoadedSets = {}
+    for _, v in ipairs(settings.Characters[CharConfig].Sets) do
+        charLoadedSets[v] = true
     end
-    for k, v in pairs(settings.Sets) do
-        if keys[v] == nil then unassigned[k] = v end
+    for k, _ in pairs(settings.Sets) do
+        if charLoadedSets[k] == nil then
+            unassigned[k] = true
+        end
     end
 
     if ImGui.BeginPopupContextItem() then
-        if getTableSize(unassigned) > 0 then
+        if btnUtils.getTableSize(unassigned) > 0 then
             if ImGui.BeginMenu("Add Set") then
-                for k, v in pairs(unassigned) do
-                    if ImGui.MenuItem(v) then
-                        settings.Characters[CharConfig].Sets[max] = v
-                        SaveSettings()
+                for k, _ in pairs(unassigned) do
+                    if ImGui.MenuItem(k) then
+                        table.insert(settings.Characters[CharConfig].Sets, k)
+                        SaveSettings(true)
                         break
                     end
                 end
@@ -209,8 +252,18 @@ local DrawTabContextMenu = function()
             for i, v in ipairs(settings.Characters[CharConfig].Sets) do
                 if ImGui.MenuItem(v) then
                     table.remove(settings.Characters[CharConfig].Sets, i)
-                    SaveSettings()
+                    SaveSettings(true)
                     break
+                end
+            end
+            ImGui.EndMenu()
+        end
+
+        if ImGui.BeginMenu("Share Set") then
+            for k, _ in pairs(settings.Sets) do
+                if ImGui.MenuItem(k) then
+                    ExportSetToClipBoard(k)
+                    Output("Set: '%s' has been copied to your clipboard!", k)
                 end
             end
             ImGui.EndMenu()
@@ -226,11 +279,17 @@ local DrawTabContextMenu = function()
                 if ImGui.MenuItem(tostring(i), nil, checked) then
                     settings.Global.ButtonSize = i
                     buttonSizeDirty = true
-                    SaveSettings()
+                    SaveSettings(true)
                     break
                 end
             end
             ImGui.EndMenu()
+        end
+
+        if ImGui.MenuItem("Import Button or Set") then
+            importObjectPopupOpen = true
+            importText = ImGui.GetClipboardText() or ""
+            importTextChanged = true
         end
 
         if ImGui.MenuItem("Replicate Size/Pos") then
@@ -270,7 +329,7 @@ local DrawTabContextMenu = function()
                 local checked = settings.Global.Font == v.size
                 if ImGui.MenuItem(v.label, nil, checked) then
                     settings.Global.Font = v.size
-                    SaveSettings()
+                    SaveSettings(true)
                     break
                 end
             end
@@ -286,7 +345,7 @@ local DrawTabContextMenu = function()
     end
 end
 
-local DrawCreateTab = function()
+local function DrawCreateTab()
     if ImGui.BeginPopup(editTabPopup) then
         ImGui.Text("New Button Set:")
         local tmp, selected = ImGui.InputText("##edit", '', 0)
@@ -295,7 +354,7 @@ local DrawCreateTab = function()
             if name ~= nil and name:len() > 0 then
                 table.insert(settings.Characters[CharConfig].Sets, name)
                 settings.Sets[name] = {}
-                SaveSettings()
+                SaveSettings(true)
             else
                 Output("\arError Saving Set: Name cannot be empty.\ax")
             end
@@ -305,7 +364,7 @@ local DrawCreateTab = function()
     end
 end
 
-local DrawContextMenu = function(Set, Index, buttonID)
+local function DrawContextMenu(Set, Index, buttonID)
     local Button = GetButtonBySetIndex(Set, Index)
 
     local unassigned = {}
@@ -345,7 +404,7 @@ local DrawContextMenu = function(Set, Index, buttonID)
                     if value ~= nil then
                         if ImGui.MenuItem(tostring(value.Label)) then
                             settings.Sets[Set][Index] = key
-                            SaveSettings()
+                            SaveSettings(true)
                             break
                         end
                     end
@@ -372,15 +431,186 @@ local DrawContextMenu = function(Set, Index, buttonID)
             end
             if ImGui.MenuItem("Unassign") then
                 settings.Sets[Set][Index] = nil
-                SaveSettings()
+                SaveSettings(true)
             end
+            if ImGui.MenuItem(Icons.MD_SHARE) then
+                local button = GetButtonBySetIndex(Set, Index)
+                ExportButtonToClipBoard(button)
+            end
+            Tooltip("Copy contents of this button to share with friends.")
         end
 
         ImGui.EndPopup()
     end
 end
 
-local DrawEditButtonPopup = function()
+local function RenderButtonEditUI(renderButton, enableShare, enableEdit)
+    -- color pickers
+    if renderButton.ButtonColorRGB ~= nil then
+        local tColors = split(renderButton.ButtonColorRGB, ",")
+        for i, v in ipairs(tColors) do btnColor[i] = tonumber(v / 255) end
+    else
+        btnColor[1] = 0
+        btnColor[2] = 0
+        btnColor[3] = 0
+    end
+    local objectID = string.format("##ColorPicker1_%s", renderButton.Label)
+    ImGui.PushID(objectID)
+    local col, used = ImGui.ColorEdit3("Button Color", btnColor, ImGuiColorEditFlags.NoInputs)
+    if used then
+        editButtonTextChanged = true
+        btnColor = shallowcopy(col)
+        renderButton.ButtonColorRGB = string.format("%d,%d,%d", math.floor(col[1] * 255),
+            math.floor(col[2] * 255), math.floor(col[3] * 255))
+    end
+    ImGui.PopID()
+    if ImGui.BeginPopupContextItem(objectID) then
+        if ImGui.MenuItem("Clear Button Color") then
+            renderButton.ButtonColorRGB = nil
+            SaveSettings(true)
+        end
+        ImGui.EndPopup()
+    end
+    ImGui.SameLine()
+    if renderButton.TextColorRGB ~= nil then
+        local tColors = split(renderButton.TextColorRGB, ",")
+        for i, v in ipairs(tColors) do txtColor[i] = tonumber(v / 255) end
+    else
+        txtColor[1] = 1.0
+        txtColor[2] = 1.0
+        txtColor[3] = 1.0
+    end
+    objectID = string.format("##ColorPicker2_%s", renderButton.Label)
+    ImGui.PushID(objectID)
+    col, used = ImGui.ColorEdit3("Text Color", txtColor, ImGuiColorEditFlags.NoInputs)
+    if used then
+        editButtonTextChanged = true
+        txtColor = shallowcopy(col)
+        renderButton.TextColorRGB = string.format("%d,%d,%d", math.floor(col[1] * 255),
+            math.floor(col[2] * 255), math.floor(col[3] * 255))
+    end
+    ImGui.PopID()
+    if ImGui.BeginPopupContextItem(objectID) then
+        if ImGui.MenuItem("Clear Text Color") then
+            renderButton.TextColorRGB = nil
+            SaveSettings(true)
+        end
+        ImGui.EndPopup()
+    end
+
+    ImGui.SameLine()
+    if renderButton.Icon then
+        objectID = string.format("##IconPicker_%s_%d", editButtonSet, editButtonIndex)
+        ImGui.PushID(objectID)
+        if RenderSpellIcon(renderButton.Icon, 20, true, "") then
+            picker:SetOpen()
+        end
+        ImGui.PopID()
+        if ImGui.BeginPopupContextItem(objectID) then
+            if ImGui.MenuItem("Clear Icon") then
+                renderButton.Icon = nil
+                SaveSettings(true)
+            end
+            ImGui.EndPopup()
+        end
+    else
+        if ImGui.Button('', ImVec2(20, 20)) then
+            picker:SetOpen()
+        end
+    end
+
+    ImGui.SameLine()
+    ImGui.Text("Icon")
+
+    if picker.Selected then
+        renderButton.Icon = picker.Selected
+        picker:ClearSelection()
+    end
+
+    -- color reset
+    ImGui.SameLine()
+    if ImGui.Button("Reset All") then
+        btnColor, txtColor = {}, {}
+        renderButton.ButtonColorRGB = nil
+        renderButton.TextColorRGB = nil
+        renderButton.Icon = nil
+        editButtonTextChanged = true
+    end
+
+    -- Share Buttton
+    if enableShare then
+        ImGui.SameLine()
+        if ImGui.Button(Icons.MD_SHARE) then
+            ImGui.SetClipboardText(btnUtils.encodeTable(renderButton))
+            ExportButtonToClipBoard(renderButton)
+        end
+        Tooltip("Copy contents of this button to share with friends.")
+    end
+
+    local textChanged
+    renderButton.Label, textChanged = ImGui.InputText('Button Label', renderButton.Label or '')
+    editButtonTextChanged = editButtonTextChanged or textChanged
+
+    local xPos = ImGui.GetCursorPosX()
+    local footerHeight = 110
+    local editHeight = ImGui.GetWindowHeight() - xPos - footerHeight
+    renderButton.Cmd, textChanged = ImGui.InputTextMultiline("##_Cmd_Edit", renderButton.Cmd or "",
+        ImVec2(ImGui.GetWindowWidth() * 0.98, editHeight))
+    editButtonTextChanged = editButtonTextChanged or textChanged
+end
+
+local function DrawImportButtonPopup()
+    if not importObjectPopupOpen then return end
+
+    local shouldDrawImportPopup = false
+
+    importObjectPopupOpen, shouldDrawImportPopup = ImGui.Begin("Import Button or Set", importObjectPopupOpen, ImGuiWindowFlags.None)
+    if ImGui.GetWindowWidth() < 500 or ImGui.GetWindowHeight() < 100 then
+        ImGui.SetWindowSize(math.max(500, ImGui.GetWindowWidth()), math.max(100, ImGui.GetWindowHeight()))
+    end
+    if importObjectPopupOpen and shouldDrawImportPopup then
+        if ImGui.SmallButton(Icons.MD_CONTENT_PASTE) then
+            importText = ImGui.GetClipboardText()
+            importTextChanged = true
+        end
+        Tooltip("Paste from Clipboard")
+        ImGui.SameLine()
+
+        if importTextChanged then
+            validDecode, decodedObject = btnUtils.decodeTable(importText)
+            btnUtils.dumpTable(decodedObject)
+            validDecode = type(decodedObject) == 'table' and validDecode or false
+        end
+
+        if validDecode then
+            ImGui.PushStyleColor(ImGuiCol.Text, 0.02, 0.8, 0.02, 1.0)
+        else
+            ImGui.PushStyleColor(ImGuiCol.Text, 0.8, 0.02, 0.02, 1.0)
+        end
+        importText, importTextChanged = ImGui.InputText((validDecode and Icons.MD_CHECK or Icons.MD_NOT_INTERESTED) .. " Import Code", importText, ImGuiInputTextFlags.None)
+        ImGui.PopStyleColor()
+
+        -- save button
+        if validDecode and decodedObject then
+            if ImGui.Button("Import " .. decodedObject.Type) then
+                if decodedObject.Type == "Button" then
+                    ImportButtonAndSave(decodedObject.Button, true)
+                elseif decodedObject.Type == "Set" then
+                    importSetAndSave(decodedObject)
+                else
+                    Output("\arError: imported object was not a button or a set!")
+                end
+                -- reset everything
+                decodedObject = {}
+                importText = ""
+                importObjectPopupOpen = false
+            end
+        end
+    end
+    ImGui.End()
+end
+
+local function DrawEditButtonPopup()
     if not editButtonPopupOpen then
         picker:SetClosed()
         return
@@ -398,120 +628,18 @@ local DrawEditButtonPopup = function()
             tmpButton[ButtonKey] = shallowcopy(Button)
         end
 
-        -- color pickers
-        if tmpButton[ButtonKey].ButtonColorRGB ~= nil then
-            local tColors = split(tmpButton[ButtonKey].ButtonColorRGB, ",")
-            for i, v in ipairs(tColors) do btnColor[i] = tonumber(v / 255) end
-        else
-            btnColor[1] = 0
-            btnColor[2] = 0
-            btnColor[3] = 0
-        end
-        local objectID = string.format("##ColorPicker1_%s_%d", editButtonSet, editButtonIndex)
-        ImGui.PushID(objectID)
-        local col, used = ImGui.ColorEdit3("Button Color", btnColor, ImGuiColorEditFlags.NoInputs)
-        if used then
-            editButtonTextChanged = true
-            btnColor = shallowcopy(col)
-            tmpButton[ButtonKey].ButtonColorRGB = string.format("%d,%d,%d", math.floor(col[1] * 255),
-                math.floor(col[2] * 255), math.floor(col[3] * 255))
-        end
-        ImGui.PopID()
-        if ImGui.BeginPopupContextItem(objectID) then
-            if ImGui.MenuItem("Clear Button Color") then
-                tmpButton[ButtonKey].ButtonColorRGB = nil
-                SaveSettings(true)
-            end
-            ImGui.EndPopup()
-        end
-        ImGui.SameLine()
-        if tmpButton[ButtonKey].TextColorRGB ~= nil then
-            local tColors = split(tmpButton[ButtonKey].TextColorRGB, ",")
-            for i, v in ipairs(tColors) do txtColor[i] = tonumber(v / 255) end
-        else
-            txtColor[1] = 1.0
-            txtColor[2] = 1.0
-            txtColor[3] = 1.0
-        end
-        objectID = string.format("##ColorPicker2_%s_%d", editButtonSet, editButtonIndex)
-        ImGui.PushID(objectID)
-        col, used = ImGui.ColorEdit3("Text Color", txtColor, ImGuiColorEditFlags.NoInputs)
-        if used then
-            editButtonTextChanged = true
-            txtColor = shallowcopy(col)
-            tmpButton[ButtonKey].TextColorRGB = string.format("%d,%d,%d", math.floor(col[1] * 255),
-                math.floor(col[2] * 255), math.floor(col[3] * 255))
-        end
-        ImGui.PopID()
-        if ImGui.BeginPopupContextItem(objectID) then
-            if ImGui.MenuItem("Clear Text Color") then
-                tmpButton[ButtonKey].TextColorRGB = nil
-                SaveSettings(true)
-            end
-            ImGui.EndPopup()
-        end
-
-        ImGui.SameLine()
-        if tmpButton[ButtonKey].Icon then
-            objectID = string.format("##IconPicker_%s_%d", editButtonSet, editButtonIndex)
-            ImGui.PushID(objectID)
-            if renderSpellIcon(tmpButton[ButtonKey].Icon, 20, true, "") then
-                picker:SetOpen()
-            end
-            ImGui.PopID()
-            if ImGui.BeginPopupContextItem(objectID) then
-                if ImGui.MenuItem("Clear Icon") then
-                    tmpButton[ButtonKey].Icon = nil
-                    SaveSettings(true)
-                end
-                ImGui.EndPopup()
-            end
-        else
-            if ImGui.Button('', ImVec2(20, 20)) then
-                picker:SetOpen()
-            end
-        end
-
-        ImGui.SameLine()
-        ImGui.Text("Icon")
-
-        if picker.Selected then
-            tmpButton[ButtonKey].Icon = picker.Selected
-            picker:ClearSelection()
-        end
-
-        -- color reset
-        ImGui.SameLine()
-        if ImGui.Button("Reset All") then
-            btnColor, txtColor = {}, {}
-            tmpButton[ButtonKey].ButtonColorRGB = nil
-            tmpButton[ButtonKey].TextColorRGB = nil
-            tmpButton[ButtonKey].Icon = nil
-            editButtonTextChanged = true
-        end
-
-        local textChanged
-        tmpButton[ButtonKey].Label, textChanged = ImGui.InputText('Button Label', tmpButton[ButtonKey].Label or '')
-        editButtonTextChanged = editButtonTextChanged or textChanged
-
-        local xPos = ImGui.GetCursorPosX()
-        local footerHeight = 110
-        local editHeight = ImGui.GetWindowHeight() - xPos - footerHeight
-        tmpButton[ButtonKey].Cmd, textChanged = ImGui.InputTextMultiline("##_Cmd_Edit", tmpButton[ButtonKey].Cmd or "",
-            ImVec2(ImGui.GetWindowWidth() * 0.98, editHeight))
-        editButtonTextChanged = editButtonTextChanged or textChanged
+        RenderButtonEditUI(tmpButton[ButtonKey], true, true)
 
         -- save button
         if ImGui.Button("Save") then
             -- make sure the button label isn't nil/empty/spaces
             if tmpButton[ButtonKey].Label ~= nil and tmpButton[ButtonKey].Label:gsub("%s+", ""):len() > 0 then
-                settings.Sets[editButtonSet][editButtonIndex] =
-                    ButtonKey                                                   -- add the button key for this button set index
+                settings.Sets[editButtonSet][editButtonIndex] = ButtonKey       -- add the button key for this button set index
                 settings.Buttons[ButtonKey] = shallowcopy(tmpButton[ButtonKey]) -- store the tmp button into the settings table
                 settings.Buttons[ButtonKey].Unassigned = nil                    -- clear the unassigned flag
                 -- if we're saving this, update the button counter
                 settings.Global.ButtonCount = settings.Global.ButtonCount + 1
-                SaveSettings()
+                SaveSettings(true)
                 editButtonTextChanged = false
             else
                 tmpButton[ButtonKey] = nil
@@ -552,7 +680,7 @@ local DrawEditButtonPopup = function()
     ImGui.End()
 end
 
-local DrawButtons = function(Set)
+local function DrawButtons(Set)
     if ImGui.GetWindowWidth() ~= lastWindowWidth or ImGui.GetWindowHeight() ~= lastWindowHeight or buttonSizeDirty then
         RecalculateVisibleButtons(Set)
     end
@@ -581,7 +709,7 @@ local DrawButtons = function(Set)
         local buttonID = string.format("##Button_%s_%d", Set, ButtonIndex)
         ImGui.PushID(buttonID)
         if Button.Icon then
-            clicked = renderSpellIcon(Button.Icon, btnSize, true, tostring(Button.Label):gsub(" ", "\n"))
+            clicked = RenderSpellIcon(Button.Icon, btnSize, true, tostring(Button.Label):gsub(" ", "\n"))
         else
             clicked = ImGui.Button(tostring(Button.Label):gsub(" ", "\n"), btnSize, btnSize)
         end
@@ -617,7 +745,7 @@ local DrawButtons = function(Set)
                     -- swap the keys in the button set
                     settings.Sets[Set][num], settings.Sets[Set][ButtonIndex] = settings.Sets[Set][ButtonIndex],
                         settings.Sets[Set][num]
-                    SaveSettings()
+                    SaveSettings(true)
                 end
                 ImGui.EndDragDropTarget()
             end
@@ -632,8 +760,7 @@ local DrawButtons = function(Set)
     end
 end
 
-local DrawTabs = function()
-    local Set
+local function DrawTabs()
     local lockedIcon = settings.Characters[CharConfig].Locked and Icons.FA_LOCK .. '##lockTabButton' or
         Icons.FA_UNLOCK .. '##lockTablButton'
     if ImGui.Button(lockedIcon) then
@@ -681,19 +808,21 @@ local DrawTabs = function()
 
                             -- update other chacters who might have been using this same set.
                             for curCharKey, curCharData in pairs(settings.Characters) do
-                                for setIdx, oldSetName in ipairs(curCharData.Sets) do
-                                    if oldSetName == set then
-                                        Output(string.format(
-                                            "\awUpdating section '\ag%s\aw' renaming \am%s\aw => \at%s", curCharKey,
-                                            oldSetName, name))
-                                        settings.Characters[curCharKey].Sets[setIdx] = name
+                                if curCharKey ~= CharConfig then
+                                    for setIdx, oldSetName in ipairs(curCharData.Sets) do
+                                        if oldSetName == set then
+                                            Output(string.format(
+                                                "\awUpdating section '\ag%s\aw' renaming \am%s\aw => \at%s", curCharKey,
+                                                oldSetName, name))
+                                            settings.Characters[curCharKey].Sets[setIdx] = name
+                                        end
                                     end
                                 end
                             end
 
                             -- update set to the new name so the button render doesn't fail
                             SetLabel = newSetLabel
-                            SaveSettings()
+                            SaveSettings(true)
                         end
                         ImGui.CloseCurrentPopup()
                     end
@@ -708,7 +837,7 @@ local DrawTabs = function()
     end
 end
 
-local ButtonGUI = function()
+local function ButtonGUI()
     if not openGUI then return end
     local flags = ImGuiWindowFlags.NoFocusOnAppearing
     if not settings.Characters[CharConfig] then return end
@@ -733,12 +862,13 @@ local ButtonGUI = function()
         end
         DrawTabs()
         DrawEditButtonPopup()
+        DrawImportButtonPopup()
         picker:DrawIconPicker()
     end
     ImGui.End()
 end
 
-local function convertOldStyleToNew()
+local function ConvertToLatestConfigVersion()
     local needsSave = false
     -- version 2
     -- Run through all settings and make sure they are in the new format.
@@ -805,9 +935,10 @@ local function convertOldStyleToNew()
     end
 
     if needsSave then
-        mq.pickle(mq.configDir .. "/ButtonMaster-old.lua", settings)
+        -- be nice and make a backup.
+        mq.pickle(mq.configDir .. "/ButtonMaster-" .. os.date("%m-%d-%y-%H-%M-%S") .. ".lua", settings)
         settings = newSettings
-        SaveSettings(false)
+        SaveSettings(true)
     end
 end
 
@@ -824,7 +955,7 @@ local function LoadSettings()
             settings_path, old_settings_path)
         if file_exists(old_settings_path) then
             settings = LIP.load(old_settings_path)
-            SaveSettings(false)
+            SaveSettings(true)
         else
             printf("\ayUnable to load legacy settings file(%s), creating a new config!", old_settings_path)
             settings = {
@@ -858,21 +989,21 @@ local function LoadSettings()
                     [CharConfig] = {
                         Sets = DefaultSets,
                         Locked = false,
-                    }
-                }
+                    },
+                },
             }
-            SaveSettings()
+            SaveSettings(true)
         end
     else
         settings = config()
     end
 
     -- Convert old Cmd1-5 buttons to new Cmd style
-    convertOldStyleToNew()
+    ConvertToLatestConfigVersion()
 
     -- if this character doesn't have the sections in the ini, create them
     if settings.Characters[CharConfig] == nil then
-        settings.Characters[CharConfig] = { Sets = settings.DefaultSets or DefaultSets, Locked = false } -- use user defined Defaults before hardcoded ones.
+        settings.Characters[CharConfig] = { Sets = settings.DefaultSets or DefaultSets, Locked = false, } -- use user defined Defaults before hardcoded ones.
         initialRun = true
         SaveSettings(true)
     end
@@ -880,7 +1011,7 @@ local function LoadSettings()
     settings.Characters[CharConfig].Locked = settings.Characters[CharConfig].Locked or false
 end
 
-local Setup = function()
+local function Setup()
     LoadSettings()
     Output('\ayButton Master v2 by (\a-to_O\ay) Derple, Special.Ed (\a-to_O\ay) - \atLoaded ' .. settings_path)
 
@@ -888,14 +1019,14 @@ local Setup = function()
     mq.bind('/btn', BindBtn)
 end
 
-local CheckGameState = function()
+local function CheckGameState()
     if mq.TLO.MacroQuest.GameState() ~= 'INGAME' then
         Output('\arNot in game, stopping button master.\ax')
         mq.exit()
     end
 end
 
-local Loop = function()
+local function Loop()
     while true do
         CheckGameState()
         mq.delay(10)

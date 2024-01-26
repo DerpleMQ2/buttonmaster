@@ -9,7 +9,10 @@ function ButtonUtils.serializeTable(val, name, skipnewlines, depth)
 
     local tmp = string.rep(" ", depth)
 
-    if name then tmp = tmp .. name .. " = " end
+    if name then
+        if type(name) ~= 'number' then name = '"' .. name .. '"' end
+        tmp = tmp .. '[' .. name .. '] = '
+    end
 
     if type(val) == "table" then
         tmp = tmp .. "{" .. (not skipnewlines and "\n" or "")
@@ -39,12 +42,42 @@ end
 
 function ButtonUtils.decodeTable(encString)
     local decodedStr = base64.dec(encString)
-    local success, decodedTable = pcall(loadstring(decodedStr))
+    local success, decodedTable = pcall(load(decodedStr))
     if not success or not type(decodedTable) == 'table' then
-        print('\arERROR: Failed to import event\ax')
-        return nil
+        print('\arERROR: Failed to import object!\ax')
+        return false, nil
     end
-    return decodedTable
+    return true, decodedTable
+end
+
+function ButtonUtils.tableContains(t, v)
+    if not t then return false end
+    for _, tv in pairs(t) do
+        if tv == v then return true end
+    end
+    return false
+end
+
+function ButtonUtils.dumpTable(o, depth)
+    if not depth then depth = 0 end
+    if type(o) == 'table' then
+        local s = '{ \n'
+        for k, v in pairs(o) do
+            if type(k) ~= 'number' then k = '"' .. k .. '"' end
+            s = s .. string.rep(" ", depth) .. '\t[' .. k .. '] = ' .. ButtonUtils.dumpTable(v, depth + 1) .. ',\n'
+        end
+        return s .. string.rep(" ", depth) .. '}'
+    else
+        return tostring(o)
+    end
+end
+
+function ButtonUtils.getTableSize(tbl)
+    local cnt = 0
+    if tbl ~= nil then
+        for k, v in pairs(tbl) do cnt = cnt + 1 end
+    end
+    return cnt
 end
 
 return ButtonUtils
