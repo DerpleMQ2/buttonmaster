@@ -153,6 +153,24 @@ local function GetButtonSectionKeyBySetIndex(Set, Index)
     return key
 end
 
+local function RenderButtonCooldown(button, cursorScreenPos, btnSize)
+    if not button.CooldownTimer then return end
+    local countDown = (button.CooldownTimer - (os.clock() * 1000))
+    if countDown <= 0 then
+        button.CooldownTimer = nil
+        return
+    end
+
+    local ratio = countDown / (button.Cooldown * 1000)
+    local offsetBtnSize = ratio * btnSize
+
+    local draw_list = ImGui.GetWindowDrawList()
+
+    local topLeft = ImVec2(cursorScreenPos.x, cursorScreenPos.y + (btnSize - offsetBtnSize))
+    local bottomRight = ImVec2(topLeft.x + btnSize, cursorScreenPos.y + btnSize)
+    draw_list:AddRectFilled(topLeft, bottomRight, ImGui.GetColorU32(0.8, 0.02, 0.02, 0.75), 2)
+end
+
 local function RenderSpellIcon(id, size, overlayButton, buttonLabel)
     local cursor_x, cursor_y = ImGui.GetCursorPos()
     -- icon
@@ -444,6 +462,20 @@ local function DrawContextMenu(Set, Index, buttonID)
     end
 end
 
+local function RenderOptionNumber(id, text, cur, min, max, step)
+    ImGui.PushID("##num_spin_" .. id)
+    ImGui.PushItemWidth(100)
+    local input, changed = ImGui.InputInt(text, cur, step, step * 10)
+    ImGui.PopItemWidth()
+    ImGui.PopID()
+
+    if input > max then input = max end
+    if input < min then input = min end
+
+    changed = cur ~= input
+    return input, changed
+end
+
 local function RenderButtonEditUI(renderButton, enableShare, enableEdit)
     -- color pickers
     if renderButton.ButtonColorRGB ~= nil then
@@ -521,6 +553,15 @@ local function RenderButtonEditUI(renderButton, enableShare, enableEdit)
 
     ImGui.SameLine()
     ImGui.Text("Icon")
+
+    if picker.Selected then
+        renderButton.Icon = picker.Selected
+        picker:ClearSelection()
+    end
+
+    ImGui.SameLine()
+    renderButton.Cooldown, _ = RenderOptionNumber("##cooldown", "Cooldown", renderButton.Cooldown or 0, 0, 3600, 1)
+    Tooltip("Amount of time in seconds to display the cooldown overlay.")
 
     if picker.Selected then
         renderButton.Icon = picker.Selected
@@ -704,6 +745,8 @@ local function DrawButtons(Set)
                 tonumber(Colors[3] / 255), 1)
         end
 
+        local cursorScreenPos = ImGui.GetCursorScreenPosVec()
+
         ImGui.SetWindowFontScale(settings.Global.Font or 1)
         local clicked
         local buttonID = string.format("##Button_%s_%d", Set, ButtonIndex)
@@ -715,6 +758,8 @@ local function DrawButtons(Set)
         end
         ImGui.PopID()
         ImGui.SetWindowFontScale(1)
+
+        RenderButtonCooldown(Button, cursorScreenPos, btnSize)
 
         -- pop button styles as necessary
         if Button.ButtonColorRGB ~= nil then ImGui.PopStyleColor() end
@@ -728,6 +773,9 @@ local function DrawButtons(Set)
                     mq.cmd(c)
                 else
                     Output('\arInvalid command on Line %d : \ax%s', i, c)
+                end
+                if Button.Cooldown then
+                    Button.CooldownTimer = (os.clock() * 1000) + (Button.Cooldown * 1000)
                 end
             end
         else
