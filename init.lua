@@ -162,13 +162,24 @@ local function RenderButtonCooldown(button, cursorScreenPos, btnSize)
     end
 
     local ratio = countDown / (button.Cooldown * 1000)
-    local offsetBtnSize = ratio * btnSize
+
+    local pi = 3.141592
+    local start_angle = (0 * pi) / 180
+    local end_angle = ((360 * ratio) * pi) / 180
+    local num_segments = 6
+    local center = ImVec2(cursorScreenPos.x + (btnSize / 2), cursorScreenPos.y + (btnSize / 2))
+    local prev = center;
+    local radius = btnSize
 
     local draw_list = ImGui.GetWindowDrawList()
-
-    local topLeft = ImVec2(cursorScreenPos.x, cursorScreenPos.y + (btnSize - offsetBtnSize))
-    local bottomRight = ImVec2(topLeft.x + btnSize, cursorScreenPos.y + btnSize)
-    draw_list:AddRectFilled(topLeft, bottomRight, ImGui.GetColorU32(0.8, 0.02, 0.02, 0.75), 2)
+    draw_list:PushClipRect(cursorScreenPos, ImVec2(cursorScreenPos.x + btnSize, cursorScreenPos.y + btnSize), true)
+    for i = 0, num_segments do
+        local a = ((start_angle - ((i / num_segments) * (end_angle - start_angle)))) - ((pi) / 2)
+        local next = ImVec2(center.x + math.cos(a) * radius, center.y + math.sin(a) * radius)
+        draw_list:AddTriangleFilled(center, next, prev, ImGui.GetColorU32(0.8, 0.02, 0.02, 0.75))
+        prev = next
+    end
+    draw_list:PopClipRect()
 end
 
 local function RenderSpellIcon(id, size, overlayButton, buttonLabel)
@@ -747,6 +758,8 @@ local function DrawButtons(Set)
 
         local cursorScreenPos = ImGui.GetCursorScreenPosVec()
 
+        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, 0.9, 0.9, 0.9, 0.5)
+        ImGui.PushStyleColor(ImGuiCol.HeaderHovered, 0.9, 0.9, 0.9, 0.5)
         ImGui.SetWindowFontScale(settings.Global.Font or 1)
         local clicked
         local buttonID = string.format("##Button_%s_%d", Set, ButtonIndex)
@@ -758,9 +771,9 @@ local function DrawButtons(Set)
         end
         ImGui.PopID()
         ImGui.SetWindowFontScale(1)
+        ImGui.PopStyleColor(2)
 
         RenderButtonCooldown(Button, cursorScreenPos, btnSize)
-
         -- pop button styles as necessary
         if Button.ButtonColorRGB ~= nil then ImGui.PopStyleColor() end
         if Button.TextColorRGB ~= nil then ImGui.PopStyleColor() end
