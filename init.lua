@@ -575,9 +575,13 @@ local function DrawCreateTab()
         if selected then name = tmp end
         if ImGui.Button("Save") then
             if name ~= nil and name:len() > 0 then
-                table.insert(settings.Characters[CharConfig].Sets, name)
-                settings.Sets[name] = {}
-                SaveSettings(true)
+                if settings.Sets[name] == nil then
+                    table.insert(settings.Characters[CharConfig].Sets, name)
+                    settings.Sets[name] = {}
+                    SaveSettings(true)
+                else
+                    Output("\arError Saving Set: A set with this name already exists!\ax")
+                end
             else
                 Output("\arError Saving Set: Name cannot be empty.\ax")
             end
