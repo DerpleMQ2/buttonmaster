@@ -259,6 +259,16 @@ local function GetButtonSectionKeyBySetIndex(Set, Index)
     return key
 end
 
+local function PCallString(str)
+    local func, err = load(str)
+    if not func then
+        return false, err
+    end
+
+    local success, result = pcall(func)
+
+    return success, result
+end
 
 ---@param button any
 ---@return integer, integer #CountDown, CooldownTimer
@@ -267,20 +277,25 @@ local function GetButtonCooldown(button)
 
     if button.TimerType == "Custom Lua" then
         local success
+        local result
         local runEnv = [[mq = require('mq')
         return %s
         ]]
-        success, countDown = pcall(load(string.format(runEnv, button.Timer)))
+        success, result = PCallString(string.format(runEnv, button.Timer))
         if not success then
             Output("Failed to run Timer for Button(%s): %s", button.Label, countDown)
             Output("RunEnv was:\n%s", string.format(runEnv, button.Timer))
             countDown = 0
+        else
+            countDown = tonumber(result) or 0
         end
-        success, coolDowntimer = pcall(load(string.format(runEnv, button.Cooldown)))
+        success, result = PCallString(string.format(runEnv, button.Cooldown))
         if not success then
             Output("Failed to run Cooldown for Button(%s): %s", button.Label, coolDowntimer)
             Output("RunEnv was:\n%s", string.format(runEnv, button.Cooldown))
             coolDowntimer = 0
+        else
+            coolDowntimer = tonumber(result) or 0
         end
     elseif button.TimerType == "Seconds Timer" then
         if button.CooldownTimer then
@@ -722,24 +737,24 @@ local function RenderTimerPanel(renderButton)
     if TimerTypes[selectedTimerType] == "Custom Lua" then
         renderButton.Timer = ImGui.InputText("Custom Timer Lua", renderButton.Timer)
         Tooltip("Lua expression that describes how much longer is left until this button is usable.\ni.e. mq.TLO.Item(\"Potion of Clarity IV\").TimerReady()")
-        renderButton.Cooldown = ImGui.InputText("Custom Cooldown Lua", renderButton.Cooldown)
+        renderButton.Cooldown = ImGui.InputText("Custom Cooldown Lua", tostring(renderButton.Cooldown))
         Tooltip("Lua expression that describes how long the timer is in total.\ni.e. mq.TLO.Item(\"Potion of Clarity IV\").Clicky.TimerID()")
     elseif TimerTypes[selectedTimerType] == "Seconds Timer" then
-        renderButton.Cooldown, _ = RenderOptionNumber("##cooldown", "Manual Cooldown", renderButton.Cooldown or 0, 0, 3600, 1)
+        renderButton.Cooldown, _ = RenderOptionNumber("##cooldown", "Manual Cooldown", tonumber(renderButton.Cooldown) or 0, 0, 3600, 1)
         Tooltip("Amount of time in seconds to display the cooldown overlay.")
     elseif TimerTypes[selectedTimerType] == "Item" then
-        renderButton.Cooldown = ImGui.InputText("Item Name", renderButton.Cooldown)
+        renderButton.Cooldown = ImGui.InputText("Item Name", tostring(renderButton.Cooldown))
         Tooltip("Name of the item that you want to track the cooldown of.")
     elseif TimerTypes[selectedTimerType] == "Spell Gem" then
-        renderButton.Cooldown = ImGui.InputInt("Spell Gem", tonumber(renderButton.Cooldown), 1)
+        renderButton.Cooldown = ImGui.InputInt("Spell Gem", tonumber(renderButton.Cooldown) or 1, 1)
         if renderButton.Cooldown < 1 then renderButton.Cooldown = 1 end
         if renderButton.Cooldown > mq.TLO.Me.NumGems() then renderButton.Cooldown = mq.TLO.Me.NumGems() end
         Tooltip("Spell Gem Number that you want to track the cooldown of.")
     elseif TimerTypes[selectedTimerType] == "AA" then
-        renderButton.Cooldown = ImGui.InputText("Alt Ability Name or ID", renderButton.Cooldown)
+        renderButton.Cooldown = ImGui.InputText("Alt Ability Name or ID", tostring(renderButton.Cooldown))
         Tooltip("Name or ID of the AA that you want to track the cooldown of.")
     elseif TimerTypes[selectedTimerType] == "Ability" then
-        renderButton.Cooldown = ImGui.InputText("Ability Name", renderButton.Cooldown)
+        renderButton.Cooldown = ImGui.InputText("Ability Name", tostring(renderButton.Cooldown))
         Tooltip("Name of the Ability that you want to track the cooldown of.")
     end
 end
@@ -898,7 +913,7 @@ local function DrawEditButtonPopup()
                     tmpButton[ButtonKey].Cooldown = mq.TLO.CursorAttachment.Item()
                     tmpButton[ButtonKey].TimerType = "Item"
                 elseif attachmentType == "spell_gem" then
-                    local gem = mq.TLO.Me.Gem(mq.TLO.CursorAttachment.Spell.RankName())() or 0
+                    local gem = mq.TLO.Me.Gem(mq.TLO.CursorAttachment.Spell.RankName() or "")() or 0
                     tmpButton[ButtonKey].Label = mq.TLO.CursorAttachment.Spell.RankName()
                     tmpButton[ButtonKey].Cmd = string.format("/cast %d", gem)
                     tmpButton[ButtonKey].Icon = tostring(mq.TLO.CursorAttachment.Spell.SpellIcon())
@@ -906,7 +921,7 @@ local function DrawEditButtonPopup()
                     tmpButton[ButtonKey].Cooldown = gem
                     tmpButton[ButtonKey].TimerType = "Spell Gem"
                 elseif attachmentType == "skill" then
-                    tmpButton[ButtonKey].Label = mbuttonText
+                    tmpButton[ButtonKey].Label = buttonText
                     tmpButton[ButtonKey].Cmd = string.format("/doability %s", buttonText)
                     tmpButton[ButtonKey].Icon = nil
                     tmpButton[ButtonKey].IconType = "Ability"
@@ -961,7 +976,7 @@ local function DrawEditButtonPopup()
         if closeClick then
             picker:SetClosed()
             tmpButton[ButtonKey] = shallowcopy(Button)
-            CloseEditPopup(Set, Index)
+            CloseEditPopup()
         end
 
         ImGui.SameLine()
@@ -995,13 +1010,13 @@ local function DrawButtons(Set)
         -- push button styles if configured
         if Button.ButtonColorRGB ~= nil then
             local Colors = split(Button.ButtonColorRGB, ",")
-            ImGui.PushStyleColor(ImGuiCol.Button, tonumber(Colors[1] / 255), tonumber(Colors[2] / 255),
-                tonumber(Colors[3] / 255), 1)
+            ImGui.PushStyleColor(ImGuiCol.Button, tonumber(Colors[1] / 255) or 1.0, tonumber(Colors[2] / 255) or 1.0,
+                tonumber(Colors[3] / 255) or 1.0, 1)
         end
         if Button.TextColorRGB ~= nil then
             local Colors = split(Button.TextColorRGB, ",")
-            ImGui.PushStyleColor(ImGuiCol.Text, tonumber(Colors[1] / 255), tonumber(Colors[2] / 255),
-                tonumber(Colors[3] / 255), 1)
+            ImGui.PushStyleColor(ImGuiCol.Text, tonumber(Colors[1] / 255) or 1.0, tonumber(Colors[2] / 255) or 1.0,
+                tonumber(Colors[3] / 255) or 1.0, 1)
         end
 
         local cursorScreenPos = ImGui.GetCursorScreenPosVec()
