@@ -547,6 +547,7 @@ local function DrawTabContextMenu()
                 height = lastWindowHeight,
                 x = lastWindowX,
                 y = lastWindowY,
+                hideTitleBar = settings.Characters[CharConfig].HideTitleBar,
             })
         end
 
@@ -1394,6 +1395,7 @@ local script_actor = ButtonActors.register(function(message)
         newHeight = (tonumber(msg["height"]) or 100)
         newX = (tonumber(msg["x"]) or 0)
         newY = (tonumber(msg["y"]) or 0)
+        settings.Characters[CharConfig].HideTitleBar = msg["hideTitleBar"]
 
         Debug("\agReplicating dimentions: \atw\ax(\am%d\ax) \ath\ax(\am%d\ax) \atx\ax(\am%d\ax) \aty\ax(\am%d\ax)",
             newWidth,
