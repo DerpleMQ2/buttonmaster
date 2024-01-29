@@ -444,19 +444,11 @@ local function DrawTabContextMenu()
             ImGui.EndMenu()
         end
 
-        if ImGui.BeginMenu("Share Set") then
-            for k, _ in pairs(settings.Sets) do
-                if ImGui.MenuItem(k) then
-                    ExportSetToClipBoard(k)
-                    Output("Set: '%s' has been copied to your clipboard!", k)
-                end
-            end
-            ImGui.EndMenu()
-        end
-
-        if ImGui.MenuItem("Create New") then
+        if ImGui.MenuItem("Create New Set") then
             openPopup = true
         end
+
+        ImGui.Separator()
 
         if ImGui.BeginMenu("Button Size") then
             for i = 3, 10 do
@@ -502,10 +494,32 @@ local function DrawTabContextMenu()
             ImGui.EndMenu()
         end
 
+        ImGui.Separator()
+
+        if ImGui.BeginMenu("Share Set") then
+            for k, _ in pairs(settings.Sets) do
+                if ImGui.MenuItem(k) then
+                    ExportSetToClipBoard(k)
+                    Output("Set: '%s' has been copied to your clipboard!", k)
+                end
+            end
+            ImGui.EndMenu()
+        end
+
         if ImGui.MenuItem("Import Button or Set") then
             importObjectPopupOpen = true
             importText = ImGui.GetClipboardText() or ""
             importTextChanged = true
+        end
+
+        ImGui.Separator()
+
+        if ImGui.BeginMenu("Display Settings") then
+            if ImGui.MenuItem((settings.Characters[CharConfig].HideTitleBar and "Show" or "Hide") .. " Title Bar") then
+                settings.Characters[CharConfig].HideTitleBar = not settings.Characters[CharConfig].HideTitleBar
+                SaveSettings(true)
+            end
+            ImGui.EndMenu()
         end
 
         if ImGui.MenuItem("Replicate Size/Pos") then
@@ -521,13 +535,7 @@ local function DrawTabContextMenu()
             })
         end
 
-        if ImGui.BeginMenu("Display Settings") then
-            if ImGui.MenuItem((settings.Characters[CharConfig].HideTitleBar and "Show" or "Hide") .. " Title Bar") then
-                settings.Characters[CharConfig].HideTitleBar = not settings.Characters[CharConfig].HideTitleBar
-                SaveSettings(true)
-            end
-            ImGui.EndMenu()
-        end
+        ImGui.Separator()
 
         if ImGui.BeginMenu("Dev") then
             if ImGui.MenuItem((enableDebug and "Disable" or "Enable") .. " Debug") then
