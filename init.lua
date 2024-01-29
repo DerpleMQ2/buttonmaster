@@ -1,5 +1,7 @@
 --[[
-    Created by Special.Ed
+    Updated since 1/2024 By: Derple
+
+    Original Version: Created by Special.Ed
     Shout out to the homies:
         Lads
         Dannuic (my on again off again thing)
