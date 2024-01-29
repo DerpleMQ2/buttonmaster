@@ -1,13 +1,3 @@
---[[
-    Created by Special.Ed
-    Shout out to the homies:
-        Lads
-        Dannuic (my on again off again thing)
-        Knightly (no, i won't take that bet)
-    Thanks to the testers:
-        Shwebro, Kevbro, RYN
---]]
-
 local mq             = require('mq')
 local LIP            = require('lib/LIP')
 local Icons          = require('mq.ICONS')
