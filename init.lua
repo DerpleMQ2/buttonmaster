@@ -8,56 +8,81 @@
         Shwebro, Kevbro, RYN
 --]]
 
-local mq             = require('mq')
-local LIP            = require('lib/LIP')
-local Icons          = require('mq.ICONS')
-local picker         = require('lib.IconPicker').new()
-local btnUtils       = require('lib.buttonUtils')
-local animSpellIcons = mq.FindTextureAnimation('A_SpellIcons')
+local mq       = require('mq')
+local LIP      = require('lib/LIP')
+local Icons    = require('mq.ICONS')
+local picker   = require('lib.IconPicker').new()
+local btnUtils = require('lib.buttonUtils')
 
 require('lib/ed/utils')
 
-ButtonActors = require 'actors'
+ButtonActors                = require 'actors'
 
 -- globals
-local CharConfig = string.format("%s_%s", mq.TLO.EverQuest.Server(), mq.TLO.Me.CleanName())
-local DefaultSets = { 'Primary', 'Movement', }
+local CharConfig            = string.format("%s_%s", mq.TLO.EverQuest.Server(), mq.TLO.Me.CleanName())
+local DefaultSets           = { 'Primary', 'Movement', }
 
 -- [[ UI ]] --
-local openGUI = true
-local shouldDrawGUI = true
+local openGUI               = true
+local shouldDrawGUI         = true
 local importObjectPopupOpen = false
-local editButtonPopupOpen = false
+local editButtonPopupOpen   = false
+local editButtonUseCursor   = false
+
+-- Icon Rendering
+local animItems             = mq.FindTextureAnimation("A_DragItem")
+local animBox               = mq.FindTextureAnimation("A_RecessedBox")
+local animSpellIcons        = mq.FindTextureAnimation('A_SpellIcons')
+local animSpellGemIcons     = mq.FindTextureAnimation('A_SpellGems')
+local animSpellGemHolder    = mq.FindTextureAnimation('A_SpellGemHolder')
+local animSpellGemBG        = mq.FindTextureAnimation('A_SpellGemBackground')
+local animSquareButton      = mq.FindTextureAnimation('A_SquareBtnNormal')
+
+-- Constants
+local ICON_WIDTH            = 40
+local ICON_HEIGHT           = 40
+local COUNT_X_OFFSET        = 39
+local COUNT_Y_OFFSET        = 23
+local EQ_ICON_OFFSET        = 500
 
 -- [[ Global Objects ]] --
-local initialRun = false
-local updateWindowPosSize = false
-local newWidth = 0
-local newHeight = 0
-local newX = 0
-local newY = 0
-local cachedRows = 0
-local cachedCols = 0
-local tmpButton = {}
-local btnColor = {}
-local txtColor = {}
-local lastWindowHeight = 0
-local lastWindowWidth = 0
-local lastWindowX = 0
-local lastWindowY = 0
-local visibleButtonCount = 0
-local editButtonSet = ""
-local editButtonIndex = 0
+local initialRun            = false
+local updateWindowPosSize   = false
+local newWidth              = 0
+local newHeight             = 0
+local newX                  = 0
+local newY                  = 0
+local cachedRows            = 0
+local cachedCols            = 0
+local tmpButton             = {}
+local lastWindowHeight      = 0
+local lastWindowWidth       = 0
+local lastWindowX           = 0
+local lastWindowY           = 0
+local visibleButtonCount    = 0
+local editButtonSet         = ""
+local editButtonIndex       = 0
 local editButtonTextChanged = false
-local buttonSizeDirty = false
-local editTabPopup = "edit_tab_popup"
+local buttonSizeDirty       = false
+local editTabPopup          = "edit_tab_popup"
 local name
-local settings_path = mq.configDir .. '/ButtonMaster.lua'
-local settings = {}
-local importText = ""
-local decodedObject = {}
-local validDecode = false
-local importTextChanged = false
+local settings_path         = mq.configDir .. '/ButtonMaster.lua'
+local settings              = {}
+local importText            = ""
+local decodedObject         = {}
+local validDecode           = false
+local importTextChanged     = false
+
+-- [[ Timer Types ]] --
+local selectedTimerType     = 1
+local TimerTypes            = {
+    "Seconds Timer",
+    "Item",
+    "Spell Gem",
+    "AA",
+    "Ability",
+    "Custom Lua",
+}
 
 -- helpers
 local function Output(msg, ...)
@@ -85,8 +110,78 @@ local function BindBtn()
     openGUI = not openGUI
 end
 
+-- UI
+local function displayItemOnCursor()
+    if mq.TLO.CursorAttachment.Type() then
+        local draw_list = ImGui.GetForegroundDrawList()
+        local window_x, window_y = ImGui.GetWindowPos()
+        local window_w, window_h = ImGui.GetWindowSize()
+        local mouse_x, mouse_y = ImGui.GetMousePos()
+
+        if mouse_x < window_x or mouse_x > window_x + window_w then return end
+        if mouse_y < window_y or mouse_y > window_y + window_h then return end
+
+        local icon_x = mouse_x + 10
+        local icon_y = mouse_y + 10
+        local stack_x = icon_x + COUNT_X_OFFSET + 10
+        local stack_y = (icon_y + COUNT_Y_OFFSET)
+
+        local attachType = mq.TLO.CursorAttachment.Type():lower()
+        if attachType == "item" or attachType == "item_link" then
+            local cursor_item = mq.TLO.CursorAttachment.Item
+            animItems:SetTextureCell(cursor_item.Icon() - EQ_ICON_OFFSET)
+            if attachType == "item_link" then
+                draw_list:AddTextureAnimation(animBox, ImVec2(icon_x, icon_y), ImVec2(ICON_WIDTH, ICON_HEIGHT))
+            end
+            draw_list:AddTextureAnimation(animItems, ImVec2(icon_x, icon_y), ImVec2(ICON_WIDTH, ICON_HEIGHT))
+            if cursor_item.Stackable() then
+                local text_size = ImGui.CalcTextSize(tostring(cursor_item.Stack()))
+                draw_list:AddTextureAnimation(animBox, ImVec2(stack_x, stack_y), ImVec2(text_size, ImGui.GetTextLineHeight()))
+                draw_list:AddText(ImVec2(stack_x, stack_y), IM_COL32(255, 255, 255, 255), tostring(cursor_item.Stack()))
+            end
+        elseif attachType == "spell_gem" then
+            local gem_offset_x = 7
+            local gem_offset_y = 5
+            local cursor_item = mq.TLO.CursorAttachment.Spell
+            animSpellGemIcons:SetTextureCell(cursor_item.SpellIcon())
+            draw_list:AddTextureAnimation(animSpellGemHolder, ImVec2(icon_x, icon_y), ImVec2(39, 32))
+            draw_list:AddTextureAnimation(animSpellGemBG, ImVec2(icon_x, icon_y), ImVec2(39, 32))
+            draw_list:AddTextureAnimation(animSpellGemIcons, ImVec2(icon_x + gem_offset_x, icon_y + gem_offset_y), ImVec2(24, 24))
+        elseif attachType == "skill" or attachType == "social" then
+            local buttonLabel = mq.TLO.CursorAttachment.ButtonText()
+            local label_x, label_y = ImGui.CalcTextSize(buttonLabel)
+            local midX = math.max((ICON_WIDTH - label_x) / 2, 0)
+            local midY = (ICON_WIDTH - label_y) / 2
+            draw_list:AddTextureAnimation(animSquareButton, ImVec2(icon_x, icon_y), ImVec2(ICON_WIDTH, ICON_WIDTH))
+            draw_list:AddText(nil, 13, ImVec2(icon_x + midX, icon_y + midY), IM_COL32(255, 255, 255, 255), buttonLabel)
+        end
+    end
+end
+
+local function CloseEditPopup()
+    editButtonPopupOpen = false
+    editButtonIndex = 0
+    editButtonSet = ""
+end
+
 local function GetButtonBySetIndex(Set, Index)
     return settings.Buttons[settings.Sets[Set][Index]] or { Unassigned = true, Label = tostring(Index), }
+end
+
+local function OpenEditPopup(Set, Index)
+    editButtonPopupOpen = true
+    editButtonIndex = Index
+    editButtonSet = Set
+    selectedTimerType = 1
+    local button = GetButtonBySetIndex(Set, Index)
+    if not button.Unassigned and button.TimerType and button.TimerType:len() > 0 then
+        for index, type in ipairs(TimerTypes) do
+            if type == button.TimerType then
+                selectedTimerType = index
+                break
+            end
+        end
+    end
 end
 
 local function ExportButtonToClipBoard(button)
@@ -122,7 +217,7 @@ local function ExportSetToClipBoard(setKey)
     ImGui.SetClipboardText(btnUtils.encodeTable(sharableSet))
 end
 
-local function importSetAndSave(sharableSet)
+local function ImportSetAndSave(sharableSet)
     -- is setname unqiue?
     local setName = sharableSet.Key
     if settings.Sets[setName] ~= nil then
@@ -153,50 +248,95 @@ local function GetButtonSectionKeyBySetIndex(Set, Index)
     return key
 end
 
-local function RenderButtonCooldown(button, cursorScreenPos, btnSize)
-    if not button.CooldownTimer then return end
-    local countDown = (button.CooldownTimer - (os.clock() * 1000))
-    if countDown <= 0 then
-        button.CooldownTimer = nil
-        return
+
+---@param button any
+---@return integer, integer #CountDown, CooldownTimer
+local function GetButtonCooldown(button)
+    local countDown, coolDowntimer = 0, 0
+
+    if button.TimerType == "Custom Lua" then
+        local success
+        local runEnv = [[mq = require('mq')
+        return %s
+        ]]
+        success, countDown = pcall(load(string.format(runEnv, button.Timer)))
+        if not success then
+            Output("Failed to run Timer for Button(%s): %s", button.Label, countDown)
+            Output("RunEnv was:\n%s", string.format(runEnv, button.Timer))
+            countDown = 0
+        end
+        success, coolDowntimer = pcall(load(string.format(runEnv, button.Cooldown)))
+        if not success then
+            Output("Failed to run Cooldown for Button(%s): %s", button.Label, coolDowntimer)
+            Output("RunEnv was:\n%s", string.format(runEnv, button.Cooldown))
+            coolDowntimer = 0
+        end
+    elseif button.TimerType == "Seconds Timer" then
+        if button.CooldownTimer then
+            countDown = button.CooldownTimer - os.clock()
+            if countDown <= 0 then
+                button.CooldownTimer = nil
+                return 0, 0
+            end
+            coolDowntimer = button.Cooldown
+        end
+    elseif button.TimerType == "Item" then
+        countDown = mq.TLO.FindItem(button.Cooldown).TimerReady() or 0
+        coolDowntimer = mq.TLO.FindItem(button.Cooldown).Clicky.TimerID() or 0
+    elseif button.TimerType == "Spell Gem" then
+        countDown = (mq.TLO.Me.GemTimer(button.Cooldown)() or 0) / 1000
+        coolDowntimer = mq.TLO.Me.GemTimer(button.Cooldown).TotalSeconds() or 0
+    elseif button.TimerType == "AA" then
+        countDown = (mq.TLO.Me.AltAbilityTimer(button.Cooldown)() or 0) / 1000
+        coolDowntimer = mq.TLO.Me.AltAbility(button.Cooldown).MyReuseTime() or 0
+    elseif button.TimerType == "Ability" then
+        if mq.TLO.Me.AbilityTimer then
+            countDown = (mq.TLO.Me.AbilityTimer(button.Cooldown)() or 0) / 1000
+            coolDowntimer = (mq.TLO.Me.AbilityReuse(button.Cooldown)() or 0) / 1000
+        end
     end
 
-    local ratio = countDown / (button.Cooldown * 1000)
+    return countDown, coolDowntimer
+end
 
-    local pi = 3.141592
-    local start_angle = (0 * pi) / 180
-    local end_angle = ((360 * ratio) * pi) / 180
-    local num_segments = 6
+local function RenderButtonCooldown(button, cursorScreenPos, btnSize)
+    local countDown, coolDowntimer = GetButtonCooldown(button)
+    if coolDowntimer == 0 then return end
+
+    local ratio = 1 - (countDown / (coolDowntimer))
+    local start_angle = (1.5 * math.pi)
+    local end_angle = math.pi * ((2 * ratio) - 0.5)
     local center = ImVec2(cursorScreenPos.x + (btnSize / 2), cursorScreenPos.y + (btnSize / 2))
-    local prev = center;
-    local radius = btnSize
 
     local draw_list = ImGui.GetWindowDrawList()
     draw_list:PushClipRect(cursorScreenPos, ImVec2(cursorScreenPos.x + btnSize, cursorScreenPos.y + btnSize), true)
-    for i = 0, num_segments do
-        local a = ((start_angle - ((i / num_segments) * (end_angle - start_angle)))) - ((pi) / 2)
-        local next = ImVec2(center.x + math.cos(a) * radius, center.y + math.sin(a) * radius)
-        draw_list:AddTriangleFilled(center, next, prev, ImGui.GetColorU32(0.8, 0.02, 0.02, 0.75))
-        prev = next
-    end
+    draw_list:PathLineTo(center)
+    draw_list:PathArcTo(center, btnSize, start_angle, end_angle, 0)
+    draw_list:PathFillConvex(ImGui.GetColorU32(0.8, 0.02, 0.02, 0.75))
     draw_list:PopClipRect()
 end
 
-local function RenderSpellIcon(id, size, overlayButton, buttonLabel)
+local function RenderButtonIcon(renderButton, size, buttonLabel)
     local cursor_x, cursor_y = ImGui.GetCursorPos()
     -- icon
     local clicked = false
-    animSpellIcons:SetTextureCell(id)
-    ImGui.DrawTextureAnimation(animSpellIcons, size, size)
-    if overlayButton then
+    if renderButton.IconType == nil or renderButton.IconType == "Spell" then
+        animSpellIcons:SetTextureCell(renderButton.Icon)
+        ImGui.DrawTextureAnimation(animSpellIcons, size, size)
+    else
+        animItems:SetTextureCell(renderButton.Icon)
+        ImGui.DrawTextureAnimation(animItems, size, size)
+    end
+
+    if renderButton.ShowLabel == nil or renderButton.ShowLabel then
         local label_x, label_y = ImGui.CalcTextSize(buttonLabel)
         local midX = math.max((size - label_x) / 2, 0)
         local midY = (size - label_y) / 2
         ImGui.SetCursorPos(cursor_x + midX, cursor_y + midY)
         ImGui.Text(buttonLabel)
-        ImGui.SetCursorPos(cursor_x, cursor_y)
-        clicked = ImGui.Selectable('', false, ImGuiSelectableFlags.DontClosePopups, size, size)
     end
+    ImGui.SetCursorPos(cursor_x, cursor_y)
+    clicked = ImGui.Selectable('', false, ImGuiSelectableFlags.DontClosePopups, size, size)
     return clicked
 end
 
@@ -204,7 +344,12 @@ local function DrawButtonTooltip(Button)
     -- hover tooltip
     if Button.Unassigned == nil and ImGui.IsItemHovered() then
         ImGui.BeginTooltip()
-        ImGui.Text(Button.Label)
+        local countDown, _ = GetButtonCooldown(Button)
+        local tooltipText = Button.Label
+        if countDown ~= 0 then
+            tooltipText = tooltipText .. "\n\n" .. btnUtils.FormatTime(math.ceil(countDown))
+        end
+        ImGui.Text(tooltipText)
         ImGui.EndTooltip()
     end
 end
@@ -445,18 +590,14 @@ local function DrawContextMenu(Set, Index, buttonID)
         -- only show create new for unassigned buttons
         if Button.Unassigned == true then
             if ImGui.MenuItem("Create New") then
-                editButtonPopupOpen = true
-                editButtonIndex = Index
-                editButtonSet = Set
+                OpenEditPopup(Set, Index)
             end
         end
 
         -- only show edit & unassign for assigned buttons
         if Button.Unassigned == nil then
             if ImGui.MenuItem("Edit") then
-                editButtonPopupOpen = true
-                editButtonIndex = Index
-                editButtonSet = Set
+                OpenEditPopup(Set, Index)
             end
             if ImGui.MenuItem("Unassign") then
                 settings.Sets[Set][Index] = nil
@@ -487,65 +628,41 @@ local function RenderOptionNumber(id, text, cur, min, max, step)
     return input, changed
 end
 
-local function RenderButtonEditUI(renderButton, enableShare, enableEdit)
-    -- color pickers
-    if renderButton.ButtonColorRGB ~= nil then
-        local tColors = split(renderButton.ButtonColorRGB, ",")
+local function RenderColorPicker(id, buttonTypeName, renderButton, key)
+    local btnColor = {}
+
+    if renderButton[key] ~= nil then
+        local tColors = split(renderButton[key], ",")
         for i, v in ipairs(tColors) do btnColor[i] = tonumber(v / 255) end
     else
         btnColor[1] = 0
         btnColor[2] = 0
         btnColor[3] = 0
     end
-    local objectID = string.format("##ColorPicker1_%s", renderButton.Label)
-    ImGui.PushID(objectID)
-    local col, used = ImGui.ColorEdit3("Button Color", btnColor, ImGuiColorEditFlags.NoInputs)
+
+    ImGui.PushID(id)
+    local col, used = ImGui.ColorEdit3(string.format("%s Color", buttonTypeName), btnColor, ImGuiColorEditFlags.NoInputs)
     if used then
         editButtonTextChanged = true
         btnColor = shallowcopy(col)
-        renderButton.ButtonColorRGB = string.format("%d,%d,%d", math.floor(col[1] * 255),
+        renderButton[key] = string.format("%d,%d,%d", math.floor(col[1] * 255),
             math.floor(col[2] * 255), math.floor(col[3] * 255))
     end
-    ImGui.PopID()
-    if ImGui.BeginPopupContextItem(objectID) then
-        if ImGui.MenuItem("Clear Button Color") then
-            renderButton.ButtonColorRGB = nil
+    if ImGui.BeginPopupContextItem(id) then
+        if ImGui.MenuItem(string.format("Clear %s Color", buttonTypeName)) then
+            renderButton[key] = nil
             SaveSettings(true)
         end
         ImGui.EndPopup()
     end
-    ImGui.SameLine()
-    if renderButton.TextColorRGB ~= nil then
-        local tColors = split(renderButton.TextColorRGB, ",")
-        for i, v in ipairs(tColors) do txtColor[i] = tonumber(v / 255) end
-    else
-        txtColor[1] = 1.0
-        txtColor[2] = 1.0
-        txtColor[3] = 1.0
-    end
-    objectID = string.format("##ColorPicker2_%s", renderButton.Label)
-    ImGui.PushID(objectID)
-    col, used = ImGui.ColorEdit3("Text Color", txtColor, ImGuiColorEditFlags.NoInputs)
-    if used then
-        editButtonTextChanged = true
-        txtColor = shallowcopy(col)
-        renderButton.TextColorRGB = string.format("%d,%d,%d", math.floor(col[1] * 255),
-            math.floor(col[2] * 255), math.floor(col[3] * 255))
-    end
     ImGui.PopID()
-    if ImGui.BeginPopupContextItem(objectID) then
-        if ImGui.MenuItem("Clear Text Color") then
-            renderButton.TextColorRGB = nil
-            SaveSettings(true)
-        end
-        ImGui.EndPopup()
-    end
+end
 
-    ImGui.SameLine()
+local function RenderIconPicker(renderButton)
     if renderButton.Icon then
-        objectID = string.format("##IconPicker_%s_%d", editButtonSet, editButtonIndex)
+        local objectID = string.format("##IconPicker_%s_%d", editButtonSet, editButtonIndex)
         ImGui.PushID(objectID)
-        if RenderSpellIcon(renderButton.Icon, 20, true, "") then
+        if RenderButtonIcon(renderButton, 20, "") then
             picker:SetOpen()
         end
         ImGui.PopID()
@@ -561,51 +678,101 @@ local function RenderButtonEditUI(renderButton, enableShare, enableEdit)
             picker:SetOpen()
         end
     end
+end
+
+local function RenderTimerPanel(renderButton)
+    selectedTimerType, _ = ImGui.Combo("Timer Type", selectedTimerType, TimerTypes)
+
+    renderButton.TimerType = TimerTypes[selectedTimerType]
+
+    if TimerTypes[selectedTimerType] == "Custom Lua" then
+        renderButton.Timer = ImGui.InputText("Custom Timer Lua", renderButton.Timer)
+        Tooltip("Lua expression that describes how much longer is left until this button is usable.\ni.e. mq.TLO.Item(\"Potion of Clarity IV\").TimerReady()")
+        renderButton.Cooldown = ImGui.InputText("Custom Cooldown Lua", renderButton.Cooldown)
+        Tooltip("Lua expression that describes how long the timer is in total.\ni.e. mq.TLO.Item(\"Potion of Clarity IV\").Clicky.TimerID()")
+    elseif TimerTypes[selectedTimerType] == "Seconds Timer" then
+        renderButton.Cooldown, _ = RenderOptionNumber("##cooldown", "Manual Cooldown", renderButton.Cooldown or 0, 0, 3600, 1)
+        Tooltip("Amount of time in seconds to display the cooldown overlay.")
+    elseif TimerTypes[selectedTimerType] == "Item" then
+        renderButton.Cooldown = ImGui.InputText("Item Name", renderButton.Cooldown)
+        Tooltip("Name of the item that you want to track the cooldown of.")
+    elseif TimerTypes[selectedTimerType] == "Spell Gem" then
+        renderButton.Cooldown = ImGui.InputInt("Spell Gem", tonumber(renderButton.Cooldown), 1)
+        if renderButton.Cooldown < 1 then renderButton.Cooldown = 1 end
+        if renderButton.Cooldown > mq.TLO.Me.NumGems() then renderButton.Cooldown = mq.TLO.Me.NumGems() end
+        Tooltip("Spell Gem Number that you want to track the cooldown of.")
+    elseif TimerTypes[selectedTimerType] == "AA" then
+        renderButton.Cooldown = ImGui.InputText("Alt Ability Name or ID", renderButton.Cooldown)
+        Tooltip("Name or ID of the AA that you want to track the cooldown of.")
+    elseif TimerTypes[selectedTimerType] == "Ability" then
+        renderButton.Cooldown = ImGui.InputText("Ability Name", renderButton.Cooldown)
+        Tooltip("Name of the Ability that you want to track the cooldown of.")
+    end
+end
+
+local function RenderButtonEditUI(renderButton, enableShare, enableEdit)
+    -- Share Buttton
+    if enableShare then
+        if ImGui.Button(Icons.MD_SHARE) then
+            ImGui.SetClipboardText(btnUtils.encodeTable(renderButton))
+            ExportButtonToClipBoard(renderButton)
+        end
+        Tooltip("Copy contents of this button to share with friends.")
+        ImGui.SameLine()
+    end
+
+    -- color pickers
+    RenderColorPicker(string.format("##ButtonColorPicker1_%s", renderButton.Label), 'Button', renderButton, 'ButtonColorRGB')
+
+    ImGui.SameLine()
+    RenderColorPicker(string.format("##TextColorPicker1_%s", renderButton.Label), 'Text', renderButton, 'TextColorRGB')
+
+    ImGui.SameLine()
+    RenderIconPicker(renderButton)
 
     ImGui.SameLine()
     ImGui.Text("Icon")
 
     if picker.Selected then
         renderButton.Icon = picker.Selected
+        renderButton.IconType = picker.SelectedType
         picker:ClearSelection()
+    end
+
+    if renderButton.Icon ~= nil then
+        ImGui.SameLine()
+        if renderButton.ShowLabel == nil then renderButton.ShowLabel = true end
+        renderButton.ShowLabel = ImGui.Checkbox("Show Button Label", renderButton.ShowLabel)
     end
 
     ImGui.SameLine()
-    renderButton.Cooldown, _ = RenderOptionNumber("##cooldown", "Cooldown", renderButton.Cooldown or 0, 0, 3600, 1)
-    Tooltip("Amount of time in seconds to display the cooldown overlay.")
-
-    if picker.Selected then
-        renderButton.Icon = picker.Selected
-        picker:ClearSelection()
-    end
 
     -- color reset
     ImGui.SameLine()
     if ImGui.Button("Reset All") then
-        btnColor, txtColor = {}, {}
         renderButton.ButtonColorRGB = nil
-        renderButton.TextColorRGB = nil
-        renderButton.Icon = nil
-        editButtonTextChanged = true
-    end
-
-    -- Share Buttton
-    if enableShare then
-        ImGui.SameLine()
-        if ImGui.Button(Icons.MD_SHARE) then
-            ImGui.SetClipboardText(btnUtils.encodeTable(renderButton))
-            ExportButtonToClipBoard(renderButton)
-        end
-        Tooltip("Copy contents of this button to share with friends.")
+        renderButton.TextColorRGB   = nil
+        renderButton.Icon           = nil
+        renderButton.IconType       = nil
+        renderButton.CustomTimer    = nil
+        renderButton.CustomCooldown = nil
+        renderButton.ShowLabel      = nil
+        editButtonTextChanged       = true
     end
 
     local textChanged
     renderButton.Label, textChanged = ImGui.InputText('Button Label', renderButton.Label or '')
     editButtonTextChanged = editButtonTextChanged or textChanged
 
-    local xPos = ImGui.GetCursorPosX()
-    local footerHeight = 110
-    local editHeight = ImGui.GetWindowHeight() - xPos - footerHeight
+    ImGui.Separator()
+    RenderTimerPanel(renderButton)
+
+    ImGui.Separator()
+
+    ImGui.Text("Commands:")
+    local yPos = ImGui.GetCursorPosY()
+    local footerHeight = 35
+    local editHeight = ImGui.GetWindowHeight() - yPos - footerHeight
     renderButton.Cmd, textChanged = ImGui.InputTextMultiline("##_Cmd_Edit", renderButton.Cmd or "",
         ImVec2(ImGui.GetWindowWidth() * 0.98, editHeight))
     editButtonTextChanged = editButtonTextChanged or textChanged
@@ -648,7 +815,7 @@ local function DrawImportButtonPopup()
                 if decodedObject.Type == "Button" then
                     ImportButtonAndSave(decodedObject.Button, true)
                 elseif decodedObject.Type == "Set" then
-                    importSetAndSave(decodedObject)
+                    ImportSetAndSave(decodedObject)
                 else
                     Output("\arError: imported object was not a button or a set!")
                 end
@@ -662,6 +829,11 @@ local function DrawImportButtonPopup()
     ImGui.End()
 end
 
+local function CreateButtonFromCursor(Set, Index)
+    editButtonUseCursor = true
+    OpenEditPopup(Set, Index)
+end
+
 local function DrawEditButtonPopup()
     if not editButtonPopupOpen then
         picker:SetClosed()
@@ -672,12 +844,56 @@ local function DrawEditButtonPopup()
     local Button = GetButtonBySetIndex(editButtonSet, editButtonIndex)
     local shouldDrawEditPopup = false
 
-    editButtonPopupOpen, shouldDrawEditPopup = ImGui.Begin("Edit Button", editButtonPopupOpen,
-        editButtonTextChanged and ImGuiWindowFlags.UnsavedDocument or ImGuiWindowFlags.None)
+    editButtonPopupOpen, shouldDrawEditPopup = ImGui.Begin("Edit Button", editButtonPopupOpen, editButtonTextChanged and ImGuiWindowFlags.UnsavedDocument or ImGuiWindowFlags.None)
     if editButtonPopupOpen and shouldDrawEditPopup then
         -- shallow copy original button incase we want to reset (close)
         if tmpButton[ButtonKey] == nil then
             tmpButton[ButtonKey] = shallowcopy(Button)
+        end
+
+        if editButtonUseCursor then
+            editButtonUseCursor = false
+            if mq.TLO.CursorAttachment and mq.TLO.CursorAttachment.Type() then
+                local buttonText = mq.TLO.CursorAttachment.ButtonText():gsub("\n", " ")
+                local attachmentType = mq.TLO.CursorAttachment.Type():lower()
+                if attachmentType == "item" or attachmentType == "item_link" then
+                    tmpButton[ButtonKey].Label = mq.TLO.CursorAttachment.Item()
+                    tmpButton[ButtonKey].Cmd = string.format("/useitem \"%s\"", mq.TLO.CursorAttachment.Item())
+                    tmpButton[ButtonKey].Icon = tostring(mq.TLO.CursorAttachment.Item.Icon() - 500)
+                    tmpButton[ButtonKey].IconType = "Item"
+                    tmpButton[ButtonKey].Cooldown = mq.TLO.CursorAttachment.Item()
+                    tmpButton[ButtonKey].TimerType = "Item"
+                elseif attachmentType == "spell_gem" then
+                    local gem = mq.TLO.Me.Gem(mq.TLO.CursorAttachment.Spell.RankName())() or 0
+                    tmpButton[ButtonKey].Label = mq.TLO.CursorAttachment.Spell.RankName()
+                    tmpButton[ButtonKey].Cmd = string.format("/cast %d", gem)
+                    tmpButton[ButtonKey].Icon = tostring(mq.TLO.CursorAttachment.Spell.SpellIcon())
+                    tmpButton[ButtonKey].IconType = "Spell"
+                    tmpButton[ButtonKey].Cooldown = gem
+                    tmpButton[ButtonKey].TimerType = "Spell Gem"
+                elseif attachmentType == "skill" then
+                    tmpButton[ButtonKey].Label = mbuttonText
+                    tmpButton[ButtonKey].Cmd = string.format("/doability %s", buttonText)
+                    tmpButton[ButtonKey].Icon = nil
+                    tmpButton[ButtonKey].IconType = "Ability"
+                    tmpButton[ButtonKey].Cooldown = buttonText
+                    tmpButton[ButtonKey].TimerType = "Ability"
+                elseif attachmentType == "social" and mq.TLO.Me.AltAbility(buttonText)() then
+                    tmpButton[ButtonKey].Label = buttonText
+                    tmpButton[ButtonKey].Cmd = string.format("/alt act %d", mq.TLO.Me.AltAbility(buttonText).ID())
+                    tmpButton[ButtonKey].Icon = nil
+                    tmpButton[ButtonKey].IconType = "AA"
+                    tmpButton[ButtonKey].Cooldown = buttonText
+                    tmpButton[ButtonKey].TimerType = "AA"
+                end
+
+                for index, type in ipairs(TimerTypes) do
+                    if type == tmpButton[ButtonKey].TimerType then
+                        selectedTimerType = index
+                        break
+                    end
+                end
+            end
         end
 
         RenderButtonEditUI(tmpButton[ButtonKey], true, true)
@@ -711,9 +927,7 @@ local function DrawEditButtonPopup()
         if closeClick then
             picker:SetClosed()
             tmpButton[ButtonKey] = shallowcopy(Button)
-            editButtonPopupOpen = false
-            editButtonIndex = 0
-            editButtonSet = ""
+            CloseEditPopup(Set, Index)
         end
 
         ImGui.SameLine()
@@ -765,7 +979,7 @@ local function DrawButtons(Set)
         local buttonID = string.format("##Button_%s_%d", Set, ButtonIndex)
         ImGui.PushID(buttonID)
         if Button.Icon then
-            clicked = RenderSpellIcon(Button.Icon, btnSize, true, tostring(Button.Label):gsub(" ", "\n"))
+            clicked = RenderButtonIcon(Button, btnSize, tostring(Button.Label):gsub(" ", "\n"))
         else
             clicked = ImGui.Button(tostring(Button.Label):gsub(" ", "\n"), btnSize, btnSize)
         end
@@ -779,6 +993,9 @@ local function DrawButtons(Set)
         if Button.TextColorRGB ~= nil then ImGui.PopStyleColor() end
 
         if clicked then
+            if Button.Unassigned then
+                CreateButtonFromCursor(Set, ButtonIndex)
+            end
             local cmds = split(Button.Cmd, "\n")
             for i, c in ipairs(cmds) do
                 if c:find('^/') then
@@ -787,8 +1004,8 @@ local function DrawButtons(Set)
                 else
                     Output('\arInvalid command on Line %d : \ax%s', i, c)
                 end
-                if Button.Cooldown then
-                    Button.CooldownTimer = (os.clock() * 1000) + (Button.Cooldown * 1000)
+                if Button.TimerType == "Seconds Timer" then
+                    Button.CooldownTimer = os.clock() + Button.Cooldown
                 end
             end
         else
@@ -848,9 +1065,7 @@ local function DrawTabs()
                     local tmp, selected = ImGui.InputText("##edit", set, 0)
                     if selected then name = tmp end
                     if ImGui.Button("Save") then
-                        editButtonIndex = 0
-                        editButtonSet = ""
-                        editButtonPopupOpen = false
+                        CloseEditPopup()
                         picker:SetClosed()
                         local newSetLabel = name
                         if name ~= nil then
@@ -925,6 +1140,7 @@ local function ButtonGUI()
         DrawEditButtonPopup()
         DrawImportButtonPopup()
         picker:DrawIconPicker()
+        displayItemOnCursor()
     end
     ImGui.End()
 end
@@ -1004,9 +1220,7 @@ local function ConvertToLatestConfigVersion()
 end
 
 local function LoadSettings()
-    editButtonIndex = 0
-    editButtonSet = ""
-    editButtonPopupOpen = false
+    CloseEditPopup()
     picker:SetClosed()
 
     local config, err = loadfile(settings_path)
