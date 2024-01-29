@@ -165,7 +165,10 @@ local function CloseEditPopup()
 end
 
 local function GetButtonBySetIndex(Set, Index)
-    return settings.Buttons[settings.Sets[Set][Index]] or { Unassigned = true, Label = tostring(Index), }
+    if settings.Sets[Set] and settings.Sets[Set][Index] and settings.Buttons[settings.Sets[Set][Index]] then
+        return settings.Buttons[settings.Sets[Set][Index]]
+    end
+    return { Unassigned = true, Label = tostring(Index), }
 end
 
 local function OpenEditPopup(Set, Index)
