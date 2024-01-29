@@ -5,7 +5,6 @@ local picker         = require('lib.IconPicker').new()
 local animSpellIcons = mq.FindTextureAnimation('A_SpellIcons')
 
 require('lib/ed/utils')
-
 ButtonActors = require 'actors'
 
 -- globals
