@@ -1,5 +1,5 @@
 --[[
-    Updated since 1/2024 By: Derple
+    Resurrected and Updated since 1/2024 By: Derple
 
     Original Version: Created by Special.Ed
     Shout out to the homies:
@@ -74,6 +74,7 @@ local importText            = ""
 local decodedObject         = {}
 local validDecode           = false
 local importTextChanged     = false
+local enableDebug           = false
 
 -- [[ Timer Types ]] --
 local selectedTimerType     = 1
@@ -96,6 +97,11 @@ local function Output(msg, ...)
     printf('\aw[' .. mq.TLO.Time() .. '] [\aoButton Master\aw] ::\a-t %s', formatted)
 end
 
+local function Debug(msg, ...)
+    if not enableDebug then return end
+    Output('\ay<\atDEBUG\ay>\aw ' .. msg, ...)
+end
+
 local function SaveSettings(doBroadcast)
     if doBroadcast == nil then doBroadcast = true end
 
@@ -113,7 +119,7 @@ local function BindBtn()
 end
 
 -- UI
-local function displayItemOnCursor()
+local function DisplayItemOnCursor()
     if mq.TLO.CursorAttachment.Type() then
         local draw_list = ImGui.GetForegroundDrawList()
         local window_x, window_y = ImGui.GetWindowPos()
@@ -465,25 +471,6 @@ local function DrawTabContextMenu()
             ImGui.EndMenu()
         end
 
-        if ImGui.MenuItem("Import Button or Set") then
-            importObjectPopupOpen = true
-            importText = ImGui.GetClipboardText() or ""
-            importTextChanged = true
-        end
-
-        if ImGui.MenuItem("Replicate Size/Pos") then
-            local x, y = ImGui.GetWindowPos()
-            ButtonActors.send({
-                from = mq.TLO.Me.DisplayName(),
-                script = "ButtonMaster",
-                event = "CopyLoc",
-                width = lastWindowWidth,
-                height = lastWindowHeight,
-                x = lastWindowX,
-                y = lastWindowY,
-            })
-        end
-
         local font_scale = {
             {
                 label = "Tiny",
@@ -511,6 +498,40 @@ local function DrawTabContextMenu()
                     SaveSettings(true)
                     break
                 end
+            end
+            ImGui.EndMenu()
+        end
+
+        if ImGui.MenuItem("Import Button or Set") then
+            importObjectPopupOpen = true
+            importText = ImGui.GetClipboardText() or ""
+            importTextChanged = true
+        end
+
+        if ImGui.MenuItem("Replicate Size/Pos") then
+            local x, y = ImGui.GetWindowPos()
+            ButtonActors.send({
+                from = mq.TLO.Me.DisplayName(),
+                script = "ButtonMaster",
+                event = "CopyLoc",
+                width = lastWindowWidth,
+                height = lastWindowHeight,
+                x = lastWindowX,
+                y = lastWindowY,
+            })
+        end
+
+        if ImGui.BeginMenu("Display Settings") then
+            if ImGui.MenuItem((settings.Characters[CharConfig].HideTitleBar and "Show" or "Hide") .. " Title Bar") then
+                settings.Characters[CharConfig].HideTitleBar = not settings.Characters[CharConfig].HideTitleBar
+                SaveSettings(true)
+            end
+            ImGui.EndMenu()
+        end
+
+        if ImGui.BeginMenu("Dev") then
+            if ImGui.MenuItem((enableDebug and "Disable" or "Enable") .. " Debug") then
+                enableDebug = not enableDebug
             end
             ImGui.EndMenu()
         end
@@ -1003,14 +1024,18 @@ local function DrawButtons(Set)
             end
             local cmds = split(Button.Cmd, "\n")
             for i, c in ipairs(cmds) do
-                if c:find('^/') then
-                    -- don't use cmdf here because users might have %'s in their commands.
-                    mq.cmd(c)
+                if c:len() > 0 and c:find('^#') == nil and c:find('^[-]+') == nil and c:find('^|') == nil then
+                    if c:find('^/') then
+                        -- don't use cmdf here because users might have %'s in their commands.
+                        mq.cmd(c)
+                    else
+                        Output('\arInvalid command on Line %d : \ax%s', i, c)
+                    end
+                    if Button.TimerType == "Seconds Timer" then
+                        Button.CooldownTimer = os.clock() + Button.Cooldown
+                    end
                 else
-                    Output('\arInvalid command on Line %d : \ax%s', i, c)
-                end
-                if Button.TimerType == "Seconds Timer" then
-                    Button.CooldownTimer = os.clock() + Button.Cooldown
+                    Debug("Ignored: %s", c)
                 end
             end
         else
@@ -1124,8 +1149,11 @@ local function ButtonGUI()
     if not settings.Characters[CharConfig] then return end
 
     if settings.Characters[CharConfig].Locked then
-        flags = bit32.bor(flags, ImGuiWindowFlags.NoMove,
-            ImGuiWindowFlags.NoResize)
+        flags = bit32.bor(flags, ImGuiWindowFlags.NoMove, ImGuiWindowFlags.NoResize)
+    end
+
+    if settings.Characters[CharConfig].HideTitleBar then
+        flags = bit32.bor(flags, ImGuiWindowFlags.NoTitleBar)
     end
 
     openGUI, shouldDrawGUI = ImGui.Begin('Button Master', openGUI, flags)
@@ -1141,11 +1169,12 @@ local function ButtonGUI()
             ImGui.SetWindowSize(newWidth, newHeight)
             ImGui.SetWindowPos(newX, newY)
         end
+
         DrawTabs()
         DrawEditButtonPopup()
         DrawImportButtonPopup()
         picker:DrawIconPicker()
-        displayItemOnCursor()
+        DisplayItemOnCursor()
     end
     ImGui.End()
 end
@@ -1288,7 +1317,8 @@ local function LoadSettings()
         SaveSettings(true)
     end
 
-    settings.Characters[CharConfig].Locked = settings.Characters[CharConfig].Locked or false
+    settings.Characters[CharConfig].Locked       = settings.Characters[CharConfig].Locked or false
+    settings.Characters[CharConfig].HideTitleBar = settings.Characters[CharConfig].HideTitleBar or false
 end
 
 local function Setup()
@@ -1318,7 +1348,7 @@ end
 local script_actor = ButtonActors.register(function(message)
     local msg = message()
 
-    --Output("MSG! " .. msg["script"] .. " " .. msg["from"])
+    Debug("MSG! " .. msg["script"] .. " " .. msg["from"])
 
     if msg["from"] == mq.TLO.Me.DisplayName() then
         return
@@ -1338,7 +1368,7 @@ local script_actor = ButtonActors.register(function(message)
         newX = (tonumber(msg["x"]) or 0)
         newY = (tonumber(msg["y"]) or 0)
 
-        printf("\agReplicating dimentions: \atw\ax(\am%d\ax) \ath\ax(\am%d\ax) \atx\ax(\am%d\ax) \aty\ax(\am%d\ax)",
+        Debug("\agReplicating dimentions: \atw\ax(\am%d\ax) \ath\ax(\am%d\ax) \atx\ax(\am%d\ax) \aty\ax(\am%d\ax)",
             newWidth,
             newHeight, newX,
             newY)
