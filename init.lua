@@ -244,7 +244,7 @@ local function ImportSetAndSave(sharableSet)
     end
 
     -- add set to user
-    table.insert(settings.Characters[CharConfig].Sets, setName)
+    table.insert(settings.Characters[CharConfig].Windows[1].Sets, setName)
 
     SaveSettings(true)
 end
@@ -425,7 +425,7 @@ local function DrawTabContextMenu()
 
     local unassigned = {}
     local charLoadedSets = {}
-    for _, v in ipairs(settings.Characters[CharConfig].Sets) do
+    for _, v in ipairs(settings.Characters[CharConfig].Windows[1].Sets) do
         charLoadedSets[v] = true
     end
     for k, _ in pairs(settings.Sets) do
@@ -439,7 +439,7 @@ local function DrawTabContextMenu()
             if ImGui.BeginMenu("Add Set") then
                 for k, _ in pairs(unassigned) do
                     if ImGui.MenuItem(k) then
-                        table.insert(settings.Characters[CharConfig].Sets, k)
+                        table.insert(settings.Characters[CharConfig].Windows[1].Sets, k)
                         SaveSettings(true)
                         break
                     end
@@ -449,9 +449,9 @@ local function DrawTabContextMenu()
         end
 
         if ImGui.BeginMenu("Remove Set") then
-            for i, v in ipairs(settings.Characters[CharConfig].Sets) do
+            for i, v in ipairs(settings.Characters[CharConfig].Windows[1].Sets) do
                 if ImGui.MenuItem(v) then
-                    table.remove(settings.Characters[CharConfig].Sets, i)
+                    table.remove(settings.Characters[CharConfig].Windows[1].Sets, i)
                     SaveSettings(true)
                     break
                 end
@@ -577,7 +577,7 @@ local function DrawCreateTab()
         if ImGui.Button("Save") then
             if name ~= nil and name:len() > 0 then
                 if settings.Sets[name] == nil then
-                    table.insert(settings.Characters[CharConfig].Sets, name)
+                    table.insert(settings.Characters[CharConfig].Windows[1].Sets, name)
                     settings.Sets[name] = {}
                     SaveSettings(true)
                 else
@@ -1113,7 +1113,7 @@ local function DrawTabs()
     DrawCreateTab()
 
     if ImGui.BeginTabBar("Tabs") then
-        for i, set in ipairs(settings.Characters[CharConfig].Sets) do
+        for i, set in ipairs(settings.Characters[CharConfig].Windows[1].Sets) do
             if ImGui.BeginTabItem(set) then
                 SetLabel = set
 
@@ -1128,7 +1128,7 @@ local function DrawTabs()
                         local newSetLabel = name
                         if name ~= nil then
                             -- update the character button set name
-                            settings.Characters[CharConfig].Sets[i] = name
+                            settings.Characters[CharConfig].Windows[1].Sets[i] = name
 
                             -- move the old button set to the new name
                             settings.Sets[newSetLabel], settings.Sets[SetLabel] = settings.Sets[SetLabel], nil
@@ -1171,19 +1171,8 @@ local function DrawTabs()
     end
 end
 
-local function ButtonGUI()
-    if not openGUI then return end
-    local flags = ImGuiWindowFlags.NoFocusOnAppearing
-    if not settings.Characters[CharConfig] then return end
-
-    if settings.Characters[CharConfig].Locked then
-        flags = bit32.bor(flags, ImGuiWindowFlags.NoMove, ImGuiWindowFlags.NoResize)
-    end
-
-    if settings.Characters[CharConfig].HideTitleBar then
-        flags = bit32.bor(flags, ImGuiWindowFlags.NoTitleBar)
-    end
-
+local function DrawButtonWindow(id, flags)
+    ImGui.PushID("##MainWindow_" .. tostring(id))
     openGUI, shouldDrawGUI = ImGui.Begin('Button Master', openGUI, flags)
     lastWindowX, lastWindowY = ImGui.GetWindowPos()
 
@@ -1205,6 +1194,25 @@ local function ButtonGUI()
         DisplayItemOnCursor()
     end
     ImGui.End()
+    ImGui.PopID()
+end
+
+local function ButtonGUI()
+    if not openGUI then return end
+    local flags = ImGuiWindowFlags.NoFocusOnAppearing
+    if not settings.Characters[CharConfig] then return end
+
+    if settings.Characters[CharConfig].Locked then
+        flags = bit32.bor(flags, ImGuiWindowFlags.NoMove, ImGuiWindowFlags.NoResize)
+    end
+
+    if settings.Characters[CharConfig].HideTitleBar then
+        flags = bit32.bor(flags, ImGuiWindowFlags.NoTitleBar)
+    end
+    if false then
+    else
+        DrawButtonWindow(1, flags)
+    end
 end
 
 local function ConvertToLatestConfigVersion()
@@ -1213,19 +1221,21 @@ local function ConvertToLatestConfigVersion()
     -- Run through all settings and make sure they are in the new format.
     for key, value in pairs(settings) do
         -- TODO: Make buttons a seperate table instead of doing the string compare crap.
-        if key:find("^(Button_)") and value.Cmd1 or value.Cmd2 or value.Cmd3 or value.Cmd4 or value.Cmd5 then
-            Output("Key: %s Needs Converted!", key)
-            value.Cmd  = string.format("%s\n%s\n%s\n%s\n%s\n%s", value.Cmd or '', value.Cmd1 or '', value.Cmd2 or '',
-                value.Cmd3 or '', value.Cmd4 or '', value.Cmd5 or '')
-            value.Cmd  = value.Cmd:gsub("\n+", "\n")
-            value.Cmd  = value.Cmd:gsub("\n$", "")
-            value.Cmd  = value.Cmd:gsub("^\n", "")
-            value.Cmd1 = nil
-            value.Cmd2 = nil
-            value.Cmd3 = nil
-            value.Cmd4 = nil
-            value.Cmd5 = nil
-            needsSave  = true
+        if type(value) == 'table' then
+            if key:find("^(Button_)") and value.Cmd1 or value.Cmd2 or value.Cmd3 or value.Cmd4 or value.Cmd5 then
+                Output("Key: %s Needs Converted!", key)
+                value.Cmd  = string.format("%s\n%s\n%s\n%s\n%s\n%s", value.Cmd or '', value.Cmd1 or '', value.Cmd2 or '',
+                    value.Cmd3 or '', value.Cmd4 or '', value.Cmd5 or '')
+                value.Cmd  = value.Cmd:gsub("\n+", "\n")
+                value.Cmd  = value.Cmd:gsub("\n$", "")
+                value.Cmd  = value.Cmd:gsub("^\n", "")
+                value.Cmd1 = nil
+                value.Cmd2 = nil
+                value.Cmd3 = nil
+                value.Cmd4 = nil
+                value.Cmd5 = nil
+                needsSave  = true
+            end
         end
     end
 
@@ -1271,6 +1281,25 @@ local function ConvertToLatestConfigVersion()
 
             needsSave = true
         end
+    end
+
+    if needsSave then
+        -- be nice and make a backup.
+        mq.pickle(mq.configDir .. "/ButtonMaster-" .. os.date("%m-%d-%y-%H-%M-%S") .. ".lua", settings)
+        settings = newSettings
+        SaveSettings(true)
+        needsSave = false
+    end
+
+    -- version 4
+    -- Move Character sets to a specific window name
+    if settings.Characters[CharConfig].Sets ~= nil then
+        newSettings = settings
+        newSettings.Version = 4
+        newSettings.Characters[CharConfig].Windows = {}
+        table.insert(newSettings.Characters[CharConfig].Windows, { Sets = newSettings.Characters[CharConfig].Sets, Visible = true, })
+        newSettings.Characters[CharConfig].Sets = nil
+        needsSave = true
     end
 
     if needsSave then
@@ -1324,7 +1353,7 @@ local function LoadSettings()
                 },
                 Characters = {
                     [CharConfig] = {
-                        Sets = DefaultSets,
+                        Windows = { [1] = { Visible = true, Sets = DefaultSets, }, },
                         Locked = false,
                     },
                 },
@@ -1340,7 +1369,7 @@ local function LoadSettings()
 
     -- if this character doesn't have the sections in the ini, create them
     if settings.Characters[CharConfig] == nil then
-        settings.Characters[CharConfig] = { Sets = settings.DefaultSets or DefaultSets, Locked = false, } -- use user defined Defaults before hardcoded ones.
+        settings.Characters[CharConfig] = { Windows = { [1] = { Visible = true, Sets = settings.DefaultSets or DefaultSets, }, }, Locked = false, } -- use user defined Defaults before hardcoded ones.
         initialRun = true
         SaveSettings(true)
     end
