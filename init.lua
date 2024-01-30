@@ -1302,7 +1302,7 @@ local function ConvertToLatestConfigVersion()
 
     -- version 4
     -- Move Character sets to a specific window name
-    if settings.Characters[CharConfig].Sets ~= nil then
+    if settings.Characters[CharConfig] and settings.Characters[CharConfig].Sets ~= nil then
         newSettings = settings
         newSettings.Characters[CharConfig].Version = 4
         newSettings.Characters[CharConfig].Windows = {}
@@ -1374,6 +1374,9 @@ local function LoadSettings()
         settings = config()
     end
 
+    -- Convert old Cmd1-5 buttons to new Cmd style
+    ConvertToLatestConfigVersion()
+
     -- if this character doesn't have the sections in the config, create them
     if settings.Characters[CharConfig] == nil then
         if not settings.Defaults then
@@ -1389,9 +1392,6 @@ local function LoadSettings()
         initialRun = true
         SaveSettings(true)
     end
-
-    -- Convert old Cmd1-5 buttons to new Cmd style
-    ConvertToLatestConfigVersion()
 
     settings.Characters[CharConfig].Locked       = settings.Characters[CharConfig].Locked or false
     settings.Characters[CharConfig].HideTitleBar = settings.Characters[CharConfig].HideTitleBar or false
