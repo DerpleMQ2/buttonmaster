@@ -22,7 +22,6 @@ ButtonActors                = require 'actors'
 
 -- globals
 local CharConfig            = string.format("%s_%s", mq.TLO.EverQuest.Server(), mq.TLO.Me.CleanName())
-local DefaultSets           = { 'Primary', 'Movement', }
 
 -- [[ UI ]] --
 local openGUI               = true
@@ -532,6 +531,16 @@ local function DrawTabContextMenu()
         if ImGui.BeginMenu("Display Settings") then
             if ImGui.MenuItem((settings.Characters[CharConfig].HideTitleBar and "Show" or "Hide") .. " Title Bar") then
                 settings.Characters[CharConfig].HideTitleBar = not settings.Characters[CharConfig].HideTitleBar
+                SaveSettings(true)
+            end
+            if ImGui.MenuItem("Save Layout as Default") then
+                settings.Defaults = {
+                    width = lastWindowWidth,
+                    height = lastWindowHeight,
+                    x = lastWindowX,
+                    y = lastWindowY,
+                    CharSettings = settings.Characters[CharConfig],
+                }
                 SaveSettings(true)
             end
             ImGui.EndMenu()
@@ -1295,7 +1304,7 @@ local function ConvertToLatestConfigVersion()
     -- Move Character sets to a specific window name
     if settings.Characters[CharConfig].Sets ~= nil then
         newSettings = settings
-        newSettings.Version = 4
+        newSettings.Characters[CharConfig].Version = 4
         newSettings.Characters[CharConfig].Windows = {}
         table.insert(newSettings.Characters[CharConfig].Windows, { Sets = newSettings.Characters[CharConfig].Sets, Visible = true, })
         newSettings.Characters[CharConfig].Sets = nil
@@ -1353,7 +1362,8 @@ local function LoadSettings()
                 },
                 Characters = {
                     [CharConfig] = {
-                        Windows = { [1] = { Visible = true, Sets = DefaultSets, }, },
+                        Version = 4,
+                        Windows = { [1] = { Visible = true, Sets = {}, }, },
                         Locked = false,
                     },
                 },
@@ -1364,15 +1374,24 @@ local function LoadSettings()
         settings = config()
     end
 
-    -- Convert old Cmd1-5 buttons to new Cmd style
-    ConvertToLatestConfigVersion()
-
-    -- if this character doesn't have the sections in the ini, create them
+    -- if this character doesn't have the sections in the config, create them
     if settings.Characters[CharConfig] == nil then
-        settings.Characters[CharConfig] = { Windows = { [1] = { Visible = true, Sets = settings.DefaultSets or DefaultSets, }, }, Locked = false, } -- use user defined Defaults before hardcoded ones.
+        if not settings.Defaults then
+            settings.Characters[CharConfig] = { Version = 4, Windows = { [1] = { Visible = true, Sets = {}, }, }, Locked = false, } -- use user defined Defaults before hardcoded ones.
+        else
+            updateWindowPosSize = true
+            newWidth = (tonumber(settings.Defaults.width) or 100)
+            newHeight = (tonumber(settings.Defaults.height) or 100)
+            newX = (tonumber(settings.Defaults.x) or 0)
+            newY = (tonumber(settings.Defaults.y) or 0)
+            settings.Characters[CharConfig] = settings.Defaults.CharSettings
+        end
         initialRun = true
         SaveSettings(true)
     end
+
+    -- Convert old Cmd1-5 buttons to new Cmd style
+    ConvertToLatestConfigVersion()
 
     settings.Characters[CharConfig].Locked       = settings.Characters[CharConfig].Locked or false
     settings.Characters[CharConfig].HideTitleBar = settings.Characters[CharConfig].HideTitleBar or false
