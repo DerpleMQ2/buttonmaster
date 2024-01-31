@@ -42,9 +42,14 @@ end
 
 function ButtonUtils.decodeTable(encString)
     local decodedStr = base64.dec(encString)
-    local success, decodedTable = pcall(load(decodedStr))
+    local loadedFn, err = load(decodedStr)
+    if not loadedFn then
+        printf('\arERROR: Failed to import object [load failed]: %s!\ax', err)
+        return false, nil
+    end
+    local success, decodedTable = pcall(loadedFn)
     if not success or not type(decodedTable) == 'table' then
-        print('\arERROR: Failed to import object!\ax')
+        printf('\arERROR: Failed to import object! [pcall failed]: %s\ax', decodedTable or "Unknown")
         return false, nil
     end
     return true, decodedTable
@@ -88,6 +93,41 @@ function ButtonUtils.FormatTime(time)
     local minutes = math.floor((time % 3600) / 60)
     local seconds = math.floor((time % 60))
     return string.format("%d:%02d:%02d:%02d", days, hours, minutes, seconds)
+end
+
+---@param id string
+---@param text string
+---@param on boolean
+---@return boolean: state
+---@return boolean: changed
+function ButtonUtils.RenderOptionToggle(id, text, on)
+    local toggled = false
+    local state   = on
+    ImGui.PushID(id .. "_togg_btn")
+
+    ImGui.PushStyleColor(ImGuiCol.ButtonActive, 1.0, 1.0, 1.0, 0)
+    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, 1.0, 1.0, 1.0, 0)
+    ImGui.PushStyleColor(ImGuiCol.Button, 1.0, 1.0, 1.0, 0)
+
+    if on then
+        ImGui.PushStyleColor(ImGuiCol.Text, 0.3, 1.0, 0.3, 0.9)
+        if ImGui.Button(Icons.FA_TOGGLE_ON) then
+            toggled = true
+            state   = false
+        end
+    else
+        ImGui.PushStyleColor(ImGuiCol.Text, 1.0, 0.3, 0.3, 0.8)
+        if ImGui.Button(Icons.FA_TOGGLE_OFF) then
+            toggled = true
+            state   = true
+        end
+    end
+    ImGui.PopStyleColor(4)
+    ImGui.PopID()
+    ImGui.SameLine()
+    ImGui.Text(text)
+
+    return state, toggled
 end
 
 return ButtonUtils
