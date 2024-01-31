@@ -108,7 +108,7 @@ local function SaveSettings(doBroadcast)
 
     mq.pickle(settings_path, settings)
 
-    if doBroadcast then
+    if doBroadcast and mq.TLO.MacroQuest.GameState() == "INGAME" then
         Output("\aySent Event from(\am%s\ay) event(\at%s\ay)", mq.TLO.Me.DisplayName(), "SaveSettings")
         ButtonActors.send({ from = mq.TLO.Me.DisplayName(), script = "ButtonMaster", event = "SaveSettings", })
     end
@@ -1323,7 +1323,7 @@ local function ConvertToLatestConfigVersion()
     local needsSave = false
     -- version 2
     -- Run through all settings and make sure they are in the new format.
-    for key, value in pairs(settings) do
+    for key, value in pairs(settings or {}) do
         -- TODO: Make buttons a seperate table instead of doing the string compare crap.
         if type(value) == 'table' then
             if key:find("^(Button_)") and value.Cmd1 or value.Cmd2 or value.Cmd3 or value.Cmd4 or value.Cmd5 then
@@ -1501,24 +1501,19 @@ local function Setup()
     mq.bind('/btn', BindBtn)
 end
 
-local function CheckGameState()
-    if mq.TLO.MacroQuest.GameState() ~= 'INGAME' then
-        Output('\arNot in game, stopping button master.\ax')
-        mq.exit()
-    end
-end
-
 local function Loop()
-    while true do
-        CheckGameState()
+    while mq.TLO.MacroQuest.GameState() == "INGAME" do
         mq.delay(10)
     end
+    Output('\arNot in game, stopping button master.\ax')
 end
 
 -- Global Messaging callback
 ---@diagnostic disable-next-line: unused-local
 local script_actor = ButtonActors.register(function(message)
     local msg = message()
+
+    if mq.TLO.MacroQuest.GameState() ~= "INGAME" then return end
 
     Debug("MSG! " .. msg["script"] .. " " .. msg["from"])
 
