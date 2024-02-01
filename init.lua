@@ -446,16 +446,6 @@ local function RenderButton(renderButton, size, renderLabel)
     return clicked
 end
 
-local function Tooltip(desc)
-    if ImGui.IsItemHovered() then
-        ImGui.BeginTooltip()
-        ImGui.PushTextWrapPos(ImGui.GetFontSize() * 25.0)
-        ImGui.Text(desc)
-        ImGui.PopTextWrapPos()
-        ImGui.EndTooltip()
-    end
-end
-
 local function RecalculateVisibleButtons(Set)
     buttonSizeDirty = false
     lastWindowWidth = ImGui.GetWindowWidth()
@@ -737,7 +727,7 @@ local function DrawContextMenu(Set, Index, buttonID)
                 local button = GetButtonBySetIndex(Set, Index)
                 ExportButtonToClipBoard(button)
             end
-            Tooltip("Copy contents of this button to share with friends.")
+            btnUtils.Tooltip("Copy contents of this button to share with friends.")
         end
 
         ImGui.EndPopup()
@@ -817,33 +807,33 @@ local function RenderTimerPanel(renderButton)
 
     if TimerTypes[selectedTimerType] == "Custom Lua" then
         renderButton.Timer = ImGui.InputText("Custom Timer Lua", renderButton.Timer)
-        Tooltip(
+        btnUtils.Tooltip(
             "Lua expression that describes how much longer is left until this button is usable.\ni.e. 'return mq.TLO.Item(\"Potion of Clarity IV\").TimerReady()'")
         renderButton.Cooldown = ImGui.InputText("Custom Cooldown Lua", tostring(renderButton.Cooldown))
-        Tooltip(
+        btnUtils.Tooltip(
             "Lua expression that describes how long the timer is in total.\ni.e. 'return mq.TLO.Item(\"Potion of Clarity IV\").Clicky.TimerID()'")
         renderButton.ToggleCheck = ImGui.InputText("Custom Toggle Check Lua",
             renderButton.ToggleCheck and tostring(renderButton.ToggleCheck) or "")
-        Tooltip(
+        btnUtils.Tooltip(
             "Lua expression that must result in a bool: true if the button is locked and false if it is unlocked.")
     elseif TimerTypes[selectedTimerType] == "Seconds Timer" then
         renderButton.Cooldown, _ = RenderOptionNumber("##cooldown", "Manual Cooldown",
             tonumber(renderButton.Cooldown) or 0, 0, 3600, 1)
-        Tooltip("Amount of time in seconds to display the cooldown overlay.")
+        btnUtils.Tooltip("Amount of time in seconds to display the cooldown overlay.")
     elseif TimerTypes[selectedTimerType] == "Item" then
         renderButton.Cooldown = ImGui.InputText("Item Name", tostring(renderButton.Cooldown))
-        Tooltip("Name of the item that you want to track the cooldown of.")
+        btnUtils.Tooltip("Name of the item that you want to track the cooldown of.")
     elseif TimerTypes[selectedTimerType] == "Spell Gem" then
         renderButton.Cooldown = ImGui.InputInt("Spell Gem", tonumber(renderButton.Cooldown) or 1, 1)
         if renderButton.Cooldown < 1 then renderButton.Cooldown = 1 end
         if renderButton.Cooldown > mq.TLO.Me.NumGems() then renderButton.Cooldown = mq.TLO.Me.NumGems() end
-        Tooltip("Spell Gem Number that you want to track the cooldown of.")
+        btnUtils.Tooltip("Spell Gem Number that you want to track the cooldown of.")
     elseif TimerTypes[selectedTimerType] == "AA" then
         renderButton.Cooldown = ImGui.InputText("Alt Ability Name or ID", tostring(renderButton.Cooldown))
-        Tooltip("Name or ID of the AA that you want to track the cooldown of.")
+        btnUtils.Tooltip("Name or ID of the AA that you want to track the cooldown of.")
     elseif TimerTypes[selectedTimerType] == "Ability" then
         renderButton.Cooldown = ImGui.InputText("Ability Name", tostring(renderButton.Cooldown))
-        Tooltip("Name of the Ability that you want to track the cooldown of.")
+        btnUtils.Tooltip("Name of the Ability that you want to track the cooldown of.")
     end
 end
 
@@ -854,7 +844,7 @@ local function RenderButtonEditUI(renderButton, enableShare, enableEdit)
             ImGui.SetClipboardText(btnUtils.encodeTable(renderButton))
             ExportButtonToClipBoard(renderButton)
         end
-        Tooltip("Copy contents of this button to share with friends.")
+        btnUtils.Tooltip("Copy contents of this button to share with friends.")
         ImGui.SameLine()
     end
 
@@ -911,10 +901,10 @@ local function RenderButtonEditUI(renderButton, enableShare, enableEdit)
     if editButtonAdvanced then
         ImGui.SameLine()
         renderButton.EvaluateLabel, _ = ImGui.Checkbox("Evaluate Label", renderButton.EvaluateLabel or false)
-        Tooltip("Treat the Label as a Lua function and evaluate it.")
+        btnUtils.Tooltip("Treat the Label as a Lua function and evaluate it.")
 
         renderButton.IconLua, textChanged = ImGui.InputText('Icon Lua', renderButton.IconLua or '')
-        Tooltip(
+        btnUtils.Tooltip(
             "Dynamically override the IconID with this Lua function. \nNote: This MUST return number, string : IconId, IconType")
         editButtonTextChanged = editButtonTextChanged or textChanged
     end
@@ -948,7 +938,7 @@ local function DrawImportButtonPopup()
             importText = ImGui.GetClipboardText()
             importTextChanged = true
         end
-        Tooltip("Paste from Clipboard")
+        btnUtils.Tooltip("Paste from Clipboard")
         ImGui.SameLine()
 
         if importTextChanged then

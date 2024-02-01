@@ -166,6 +166,16 @@ function ButtonUtils.split(text, pattern, plain)
     return ret
 end
 
+function ButtonUtils.Tooltip(desc)
+    if ImGui.IsItemHovered() then
+        ImGui.BeginTooltip()
+        ImGui.PushTextWrapPos(ImGui.GetFontSize() * 25.0)
+        ImGui.Text(desc)
+        ImGui.PopTextWrapPos()
+        ImGui.EndTooltip()
+    end
+end
+
 --- Returns a table containing all the data from the INI file.
 --@param fileName The name of the INI file to parse. [string]
 --@return The table containing all data from the INI file. [table]
