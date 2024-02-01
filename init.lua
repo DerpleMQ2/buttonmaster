@@ -19,7 +19,7 @@ local picker                = require('lib.IconPicker').new()
 local btnUtils              = require('lib.buttonUtils')
 
 -- globals
-local CharConfig            = string.format("%s_%s", mq.TLO.EverQuest.Server(), mq.TLO.Me.CleanName())
+local CharConfig            = string.format("%s_%s", mq.TLO.EverQuest.Server(), mq.TLO.Me.DisplayName())
 
 -- [[ UI ]] --
 local openGUI               = true
@@ -73,6 +73,7 @@ local decodedObject         = {}
 local validDecode           = false
 local importTextChanged     = false
 local enableDebug           = false
+local reloadSettings        = false
 
 -- [[ Timer Types ]] --
 local selectedTimerType     = 1
@@ -1316,7 +1317,88 @@ local function ButtonGUI()
     end
 end
 
+local function NeedUpgrade()
+    return (settings.Version or 0) < 5
+end
+
+local function LoadSettings()
+    CloseEditPopup()
+    picker:SetClosed()
+
+    local config, err = loadfile(settings_path)
+    if err or not config then
+        local old_settings_path = settings_path:gsub(".lua", ".ini")
+        printf("\ayUnable to load global settings file(%s), creating a new one from legacy ini(%s) file!",
+            settings_path, old_settings_path)
+        if file_exists(old_settings_path) then
+            settings = btnUtils.loadINI(old_settings_path)
+            SaveSettings(true)
+        else
+            printf("\ayUnable to load legacy settings file(%s), creating a new config!", old_settings_path)
+            settings = {
+                Version = 5,
+                Global = {
+                    ButtonSize = 6,
+                    ButtonCount = 4,
+                },
+                Sets = {
+                    ['Primary'] = { 'Button_1', 'Button_2', 'Button_3', },
+                    ['Movement'] = { 'Button_4', },
+                },
+                Buttons = {
+                    Button_1 = {
+                        Label = 'Burn (all)',
+                        Cmd = '/bcaa //burn\n/timed 500 /bcaa //burn',
+                    },
+                    Button_2 = {
+                        Label = 'Pause (all)',
+                        Cmd = '/bcaa //multi ; /twist off ; /mqp on',
+                    },
+                    Button_3 = {
+                        Label = 'Unpause (all)',
+                        Cmd = '/bcaa //mqp off',
+                    },
+                    Button_4 = {
+                        Label = 'Nav Target (bca)',
+                        Cmd = '/bca //nav id ${Target.ID}',
+                    },
+                },
+                Characters = {
+                    [CharConfig] = {
+                        Version = 4,
+                        Windows = { [1] = { Visible = true, Sets = {}, }, },
+                        Locked = false,
+                    },
+                },
+            }
+            SaveSettings(true)
+        end
+    else
+        settings = config()
+    end
+
+    -- if this character doesn't have the sections in the config, create them
+    if settings.Characters[CharConfig] == nil then
+        if not settings.Defaults then
+            settings.Characters[CharConfig] = { Version = 4, Windows = { [1] = { Visible = true, Sets = {}, }, }, Locked = false, } -- use user defined Defaults before hardcoded ones.
+        else
+            updateWindowPosSize = true
+            newWidth = (tonumber(settings.Defaults.width) or 100)
+            newHeight = (tonumber(settings.Defaults.height) or 100)
+            newX = (tonumber(settings.Defaults.x) or 0)
+            newY = (tonumber(settings.Defaults.y) or 0)
+            settings.Characters[CharConfig] = settings.Defaults.CharSettings
+        end
+        initialRun = true
+        SaveSettings(true)
+    end
+
+    settings.Characters[CharConfig].Locked       = settings.Characters[CharConfig].Locked or false
+    settings.Characters[CharConfig].HideTitleBar = settings.Characters[CharConfig].HideTitleBar or false
+end
+
 local function ConvertToLatestConfigVersion()
+    LoadSettings()
     local needsSave = false
     -- version 2
     -- Run through all settings and make sure they are in the new format.
@@ -1336,6 +1418,7 @@ local function ConvertToLatestConfigVersion()
                 value.Cmd4 = nil
                 value.Cmd5 = nil
                 needsSave  = true
+                Output("\atUpgraded to \amv2\at!")
             end
         end
     end
@@ -1390,104 +1473,34 @@ local function ConvertToLatestConfigVersion()
         settings = newSettings
         SaveSettings(true)
         needsSave = false
+        Output("\atUpgraded to \amv3\at!")
     end
 
-    -- version 4
+    -- version 4 same as 5 but moved the version data around
+    -- version 5
     -- Move Character sets to a specific window name
-    if settings.Characters[CharConfig] and settings.Characters[CharConfig].Sets ~= nil then
-        newSettings = settings
-        newSettings.Characters[CharConfig].Version = 4
-        newSettings.Characters[CharConfig].Windows = {}
-        table.insert(newSettings.Characters[CharConfig].Windows,
-            { Sets = newSettings.Characters[CharConfig].Sets, Visible = true, })
-        newSettings.Characters[CharConfig].Sets = nil
+    if (settings.Version or 0) < 5 then
         needsSave = true
-    end
-
-    if needsSave then
-        -- be nice and make a backup.
-        mq.pickle(mq.configDir .. "/ButtonMaster-" .. os.date("%m-%d-%y-%H-%M-%S") .. ".lua", settings)
-        settings = newSettings
-        SaveSettings(true)
-    end
-end
-
-local function LoadSettings()
-    CloseEditPopup()
-    picker:SetClosed()
-
-    local config, err = loadfile(settings_path)
-    if err or not config then
-        local old_settings_path = settings_path:gsub(".lua", ".ini")
-        printf("\ayUnable to load global settings file(%s), creating a new one from legacy ini(%s) file!",
-            settings_path, old_settings_path)
-        if file_exists(old_settings_path) then
-            settings = btnUtils.loadINI(old_settings_path)
-            SaveSettings(true)
-        else
-            printf("\ayUnable to load legacy settings file(%s), creating a new config!", old_settings_path)
-            settings = {
-                Global = {
-                    ButtonSize = 6,
-                    ButtonCount = 4,
-                },
-                Sets = {
-                    ['Primary'] = { 'Button_1', 'Button_2', 'Button_3', },
-                    ['Movement'] = { 'Button_4', },
-                },
-                Buttons = {
-                    Button_1 = {
-                        Label = 'Burn (all)',
-                        Cmd = '/bcaa //burn\n/timed 500 /bcaa //burn',
-                    },
-                    Button_2 = {
-                        Label = 'Pause (all)',
-                        Cmd = '/bcaa //multi ; /twist off ; /mqp on',
-                    },
-                    Button_3 = {
-                        Label = 'Unpause (all)',
-                        Cmd = '/bcaa //mqp off',
-                    },
-                    Button_4 = {
-                        Label = 'Nav Target (bca)',
-                        Cmd = '/bca //nav id ${Target.ID}',
-                    },
-                },
-                Characters = {
-                    [CharConfig] = {
-                        Version = 4,
-                        Windows = { [1] = { Visible = true, Sets = {}, }, },
-                        Locked = false,
-                    },
-                },
-            }
-            SaveSettings(true)
+        newSettings = settings
+        newSettings.Version = 5
+        print(settings.Characters)
+        for charKey, _ in pairs(settings.Characters) do
+            if settings.Characters[charKey] and settings.Characters[charKey].Sets ~= nil then
+                newSettings.Characters[charKey].Windows = {}
+                table.insert(newSettings.Characters[charKey].Windows,
+                    { Sets = newSettings.Characters[charKey].Sets, Visible = true, })
+                newSettings.Characters[charKey].Sets = nil
+                needsSave = true
+            end
         end
-    else
-        settings = config()
-    end
-
-    -- Convert old Cmd1-5 buttons to new Cmd style
-    ConvertToLatestConfigVersion()
-
-    -- if this character doesn't have the sections in the config, create them
-    if settings.Characters[CharConfig] == nil then
-        if not settings.Defaults then
-            settings.Characters[CharConfig] = { Version = 4, Windows = { [1] = { Visible = true, Sets = {}, }, }, Locked = false, } -- use user defined Defaults before hardcoded ones.
-        else
-            updateWindowPosSize = true
-            newWidth = (tonumber(settings.Defaults.width) or 100)
-            newHeight = (tonumber(settings.Defaults.height) or 100)
-            newX = (tonumber(settings.Defaults.x) or 0)
-            newY = (tonumber(settings.Defaults.y) or 0)
-            settings.Characters[CharConfig] = settings.Defaults.CharSettings
+        if needsSave then
+            -- be nice and make a backup.
+            mq.pickle(mq.configDir .. "/ButtonMaster-" .. os.date("%m-%d-%y-%H-%M-%S") .. ".lua", settings)
+            settings = newSettings
+            SaveSettings(true)
+            Output("\atUpgraded to \amv5\at!")
         end
-        initialRun = true
-        SaveSettings(true)
     end
-
-    settings.Characters[CharConfig].Locked       = settings.Characters[CharConfig].Locked or false
-    settings.Characters[CharConfig].HideTitleBar = settings.Characters[CharConfig].HideTitleBar or false
 end
 
 local function Setup()
@@ -1498,9 +1511,24 @@ local function Setup()
     mq.bind('/btn', BindBtn)
 end
 
+local args = ... or ""
+if args:lower() == "upgrade" then
+    ConvertToLatestConfigVersion()
+    mq.exit()
+end
+
+if NeedUpgrade() then
+    Output("\awButton Master Needs to upgrade! Please Run: \at'/lua run buttonmaster upgrade'\ay on a single character to upgrade and then try again!")
+    mq.exit()
+end
+
 local function Loop()
     while mq.TLO.MacroQuest.GameState() == "INGAME" do
         mq.delay(10)
+        if reloadSettings then
+            reloadSettings = false
+            LoadSettings()
+        end
     end
     Output('\arNot in game, stopping button master.\ax')
 end
@@ -1524,7 +1552,7 @@ local script_actor = ButtonActors.register(function(message)
     Output("\ayGot Event from(\am%s\ay) event(\at%s\ay)", msg["from"], msg["event"])
 
     if msg["event"] == "SaveSettings" then
-        LoadSettings()
+        reloadSettings = true
     elseif msg["event"] == "CopyLoc" then
         updateWindowPosSize = true
         newWidth = (tonumber(msg["width"]) or 100)
