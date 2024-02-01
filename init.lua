@@ -1517,11 +1517,6 @@ if args:lower() == "upgrade" then
     mq.exit()
 end
 
-if NeedUpgrade() then
-    Output("\awButton Master Needs to upgrade! Please Run: \at'/lua run buttonmaster upgrade'\ay on a single character to upgrade and then try again!")
-    mq.exit()
-end
-
 local function Loop()
     while mq.TLO.MacroQuest.GameState() == "INGAME" do
         mq.delay(10)
@@ -1569,4 +1564,10 @@ local script_actor = ButtonActors.register(function(message)
 end)
 
 Setup()
+
+if NeedUpgrade() then
+    Output("\awButton Master Needs to upgrade! Please Run: \at'/lua run buttonmaster upgrade'\ay on a single character to upgrade and then try again!")
+    mq.exit()
+end
+
 Loop()
