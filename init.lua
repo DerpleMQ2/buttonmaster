@@ -384,14 +384,19 @@ end
 local function DrawButtonTooltip(Button, label)
     -- hover tooltip
     if Button.Unassigned == nil and ImGui.IsItemHovered() then
-        ImGui.BeginTooltip()
-        local countDown, _ = GetButtonCooldown(Button)
         local tooltipText = label
-        if countDown ~= 0 then
-            tooltipText = tooltipText .. "\n\n" .. btnUtils.FormatTime(math.ceil(countDown))
+
+        -- check label instead of tooltipText because if there is no text we dont care about the timer.
+        if label:len() > 0 then
+            local countDown, _ = GetButtonCooldown(Button)
+            if countDown ~= 0 then
+                tooltipText = tooltipText .. "\n\n" .. btnUtils.FormatTime(math.ceil(countDown))
+            end
+
+            ImGui.BeginTooltip()
+            ImGui.Text(tooltipText)
+            ImGui.EndTooltip()
         end
-        ImGui.Text(tooltipText)
-        ImGui.EndTooltip()
     end
 end
 
