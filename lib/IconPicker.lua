@@ -21,6 +21,16 @@ function IconPicker.new()
     return setmetatable(newPicker, IconPicker)
 end
 
+local function Tooltip(desc)
+    if ImGui.IsItemHovered() then
+        ImGui.BeginTooltip()
+        ImGui.PushTextWrapPos(ImGui.GetFontSize() * 25.0)
+        ImGui.Text(desc)
+        ImGui.PopTextWrapPos()
+        ImGui.EndTooltip()
+    end
+end
+
 local IconSize = 40
 function IconPicker:renderSpellIcon(id)
     local cursor_x, cursor_y = ImGui.GetCursorPos()
@@ -32,6 +42,7 @@ function IconPicker:renderSpellIcon(id)
     if ImGui.InvisibleButton(tostring(id), ImVec2(IconSize, IconSize)) then
         self.Selected = id
     end
+    Tooltip(string.format("Icon ID: %d", id))
     ImGui.PopID()
 end
 
@@ -45,6 +56,7 @@ function IconPicker:renderItemIcon(id)
     if ImGui.InvisibleButton(tostring(id), ImVec2(IconSize, IconSize)) then
         self.Selected = id
     end
+    Tooltip(string.format("Icon ID: %d", id))
     ImGui.PopID()
 end
 
