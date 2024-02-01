@@ -400,7 +400,7 @@ local function RenderButton(renderButton, size, renderLabel)
     local clicked = false
 
     -- icon
-    if renderButton.Icon or renderButton.IconLua then
+    if renderButton.Icon or (renderButton.IconLua and renderButton.IconLua:len() > 0) then
         local iconId = renderButton.Icon
         local iconType = renderButton.IconType
 
@@ -683,7 +683,7 @@ local function DrawContextMenu(Set, Index, buttonID)
     if ImGui.BeginPopupContextItem(buttonID) then
         --editPopupName = "edit_button_popup|" .. Index
         -- only list hotkeys that aren't already assigned to the button set
-        if getTableSize(unassigned) > 0 then
+        if btnUtils.getTableSize(unassigned) > 0 then
             if ImGui.BeginMenu("Assign Hotkey") then
                 -- hytiek: BEGIN ADD
                 -- Create an array to store the sorted keys
@@ -774,7 +774,7 @@ local function RenderColorPicker(id, buttonTypeName, renderButton, key)
     local col, used = ImGui.ColorEdit3(string.format("%s Color", buttonTypeName), btnColor, ImGuiColorEditFlags.NoInputs)
     if used then
         editButtonTextChanged = true
-        btnColor = shallowcopy(col)
+        btnColor = btnUtils.shallowcopy(col)
         renderButton[key] = string.format("%d,%d,%d", math.floor(col[1] * 255),
             math.floor(col[2] * 255), math.floor(col[3] * 255))
     end
@@ -1007,7 +1007,7 @@ local function DrawEditButtonPopup()
     if editButtonPopupOpen and shouldDrawEditPopup then
         -- shallow copy original button incase we want to reset (close)
         if tmpButton[ButtonKey] == nil then
-            tmpButton[ButtonKey] = shallowcopy(Button)
+            tmpButton[ButtonKey] = btnUtils.shallowcopy(Button)
         end
 
         if editButtonUseCursor then
@@ -1062,9 +1062,9 @@ local function DrawEditButtonPopup()
             -- make sure the button label isn't nil/empty/spaces
             if tmpButton[ButtonKey].Label ~= nil and tmpButton[ButtonKey].Label:gsub("%s+", ""):len() > 0 then
                 settings.Sets[editButtonSet][editButtonIndex] =
-                    ButtonKey                                                   -- add the button key for this button set index
-                settings.Buttons[ButtonKey] = shallowcopy(tmpButton[ButtonKey]) -- store the tmp button into the settings table
-                settings.Buttons[ButtonKey].Unassigned = nil                    -- clear the unassigned flag
+                    ButtonKey                                                            -- add the button key for this button set index
+                settings.Buttons[ButtonKey] = btnUtils.shallowcopy(tmpButton[ButtonKey]) -- store the tmp button into the settings table
+                settings.Buttons[ButtonKey].Unassigned = nil                             -- clear the unassigned flag
                 -- if we're saving this, update the button counter
                 settings.Global.ButtonCount = settings.Global.ButtonCount + 1
                 SaveSettings(true)
@@ -1086,7 +1086,7 @@ local function DrawEditButtonPopup()
         end
         if closeClick then
             picker:SetClosed()
-            tmpButton[ButtonKey] = shallowcopy(Button)
+            tmpButton[ButtonKey] = btnUtils.shallowcopy(Button)
             CloseEditPopup()
         end
 
@@ -1330,7 +1330,7 @@ local function LoadSettings()
         local old_settings_path = settings_path:gsub(".lua", ".ini")
         printf("\ayUnable to load global settings file(%s), creating a new one from legacy ini(%s) file!",
             settings_path, old_settings_path)
-        if file_exists(old_settings_path) then
+        if btnUtils.file_exists(old_settings_path) then
             settings = btnUtils.loadINI(old_settings_path)
             SaveSettings(true)
         else
