@@ -10,10 +10,7 @@
         Shwebro, Kevbro, RYN
 --]]
 
-local mq  = require('mq')
-local LIP = require('lib/LIP')
-
-require('lib/ed/utils')
+local mq                    = require('mq')
 
 ButtonActors                = require 'actors'
 Icons                       = require('mq.ICONS')
@@ -764,7 +761,7 @@ local function RenderColorPicker(id, buttonTypeName, renderButton, key)
     local btnColor = {}
 
     if renderButton[key] ~= nil then
-        local tColors = split(renderButton[key], ",")
+        local tColors = btnUtils.split(renderButton[key], ",")
         for i, v in ipairs(tColors) do btnColor[i] = tonumber(v / 255) end
     else
         btnColor[1] = 0
@@ -1122,12 +1119,12 @@ local function DrawButtons(Set)
 
         -- push button styles if configured
         if Button.ButtonColorRGB ~= nil then
-            local Colors = split(Button.ButtonColorRGB, ",")
+            local Colors = btnUtils.split(Button.ButtonColorRGB, ",")
             ImGui.PushStyleColor(ImGuiCol.Button, tonumber(Colors[1] / 255) or 1.0, tonumber(Colors[2] / 255) or 1.0,
                 tonumber(Colors[3] / 255) or 1.0, 1)
         end
         if Button.TextColorRGB ~= nil then
-            local Colors = split(Button.TextColorRGB, ",")
+            local Colors = btnUtils.split(Button.TextColorRGB, ",")
             ImGui.PushStyleColor(ImGuiCol.Text, tonumber(Colors[1] / 255) or 1.0, tonumber(Colors[2] / 255) or 1.0,
                 tonumber(Colors[3] / 255) or 1.0, 1)
         end
@@ -1154,7 +1151,7 @@ local function DrawButtons(Set)
             if Button.Unassigned then
                 CreateButtonFromCursor(Set, ButtonIndex)
             end
-            local cmds = split(Button.Cmd, "\n")
+            local cmds = btnUtils.split(Button.Cmd, "\n")
             for i, c in ipairs(cmds) do
                 if c:len() > 0 and c:find('^#') == nil and c:find('^[-]+') == nil and c:find('^|') == nil then
                     if c:find('^/') then
@@ -1425,7 +1422,7 @@ local function LoadSettings()
         printf("\ayUnable to load global settings file(%s), creating a new one from legacy ini(%s) file!",
             settings_path, old_settings_path)
         if file_exists(old_settings_path) then
-            settings = LIP.load(old_settings_path)
+            settings = btnUtils.loadINI(old_settings_path)
             SaveSettings(true)
         else
             printf("\ayUnable to load legacy settings file(%s), creating a new config!", old_settings_path)

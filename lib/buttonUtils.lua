@@ -130,4 +130,75 @@ function ButtonUtils.RenderOptionToggle(id, text, on)
     return state, toggled
 end
 
+function ButtonUtils.gsplit(text, pattern, plain)
+    local splitStart, length = 1, #text
+    return function()
+        if splitStart > 0 then
+            local sepStart, sepEnd = string.find(text, pattern, splitStart, plain)
+            local ret
+            if not sepStart then
+                ret = string.sub(text, splitStart)
+                splitStart = 0
+            elseif sepEnd < sepStart then
+                -- Empty separator!
+                ret = string.sub(text, splitStart, sepStart)
+                if sepStart < length then
+                    splitStart = sepStart + 1
+                else
+                    splitStart = 0
+                end
+            else
+                ret = sepStart > splitStart and string.sub(text, splitStart, sepStart - 1) or ''
+                splitStart = sepEnd + 1
+            end
+            return ret
+        end
+    end
+end
+
+function ButtonUtils.split(text, pattern, plain)
+    local ret = {}
+    if text ~= nil then
+        for match in ButtonUtils.gsplit(text, pattern, plain) do
+            table.insert(ret, match)
+        end
+    end
+    return ret
+end
+
+--- Returns a table containing all the data from the INI file.
+--@param fileName The name of the INI file to parse. [string]
+--@return The table containing all data from the INI file. [table]
+function ButtonUtils.loadINI(fileName)
+    assert(type(fileName) == 'string', 'Parameter "fileName" must be a string.');
+    local file = assert(io.open(fileName, 'r'), 'Error loading file : ' .. fileName);
+    local data = {};
+    local section;
+    for line in file:lines() do
+        local tempSection = line:match('^%[([^%[%]]+)%]$');
+        if (tempSection) then
+            section = tonumber(tempSection) and tonumber(tempSection) or tempSection;
+            data[section] = data[section] or {};
+        end
+        local param, value = line:match("^([%w|_'.%s-]+)=%s-(.+)$");
+        if (param and value ~= nil) then
+            if (tonumber(value)) then
+                value = tonumber(value);
+            elseif (value == 'true') then
+                value = true;
+            elseif (value == 'false') then
+                value = false;
+            end
+            if (tonumber(param)) then
+                param = tonumber(param);
+            end
+            if param then
+                data[section][param] = value;
+            end
+        end
+    end
+    file:close();
+    return data;
+end
+
 return ButtonUtils
