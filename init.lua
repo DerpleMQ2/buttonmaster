@@ -1360,7 +1360,6 @@ local function LoadSettings()
                 },
                 Characters = {
                     [CharConfig] = {
-                        Version = 4,
                         Windows = { [1] = { Visible = true, Sets = {}, }, },
                         Locked = false,
                     },
@@ -1371,6 +1370,9 @@ local function LoadSettings()
     else
         settings = config()
     end
+
+    -- if we need to upgrade anyway then bail after the load.
+    if NeedUpgrade() then return end
 
     -- if this character doesn't have the sections in the config, create them
     if settings.Characters[CharConfig] == nil then
