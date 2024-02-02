@@ -1008,6 +1008,7 @@ local function DrawEditButtonPopup()
         if editButtonUseCursor then
             editButtonUseCursor = false
             if mq.TLO.CursorAttachment and mq.TLO.CursorAttachment.Type() then
+                local cursorIndex = mq.TLO.CursorAttachment.Index()
                 local buttonText = mq.TLO.CursorAttachment.ButtonText():gsub("\n", " ")
                 local attachmentType = mq.TLO.CursorAttachment.Type():lower()
                 if attachmentType == "item" or attachmentType == "item_link" then
@@ -1029,16 +1030,26 @@ local function DrawEditButtonPopup()
                     tmpButton[ButtonKey].Label = buttonText
                     tmpButton[ButtonKey].Cmd = string.format("/doability %s", buttonText)
                     tmpButton[ButtonKey].Icon = nil
-                    tmpButton[ButtonKey].IconType = "Ability"
                     tmpButton[ButtonKey].Cooldown = buttonText
                     tmpButton[ButtonKey].TimerType = "Ability"
-                elseif attachmentType == "social" and mq.TLO.Me.AltAbility(buttonText)() then
+                elseif attachmentType == "social" then
                     tmpButton[ButtonKey].Label = buttonText
-                    tmpButton[ButtonKey].Cmd = string.format("/alt act %d", mq.TLO.Me.AltAbility(buttonText).ID())
-                    tmpButton[ButtonKey].Icon = nil
-                    tmpButton[ButtonKey].IconType = "AA"
-                    tmpButton[ButtonKey].Cooldown = buttonText
-                    tmpButton[ButtonKey].TimerType = "AA"
+                    if cursorIndex >= 120 then
+                        tmpButton[ButtonKey].Cmd = string.format("/alt act %d", cursorIndex)
+                        tmpButton[ButtonKey].Icon = nil
+                        tmpButton[ButtonKey].Cooldown = buttonText
+                        tmpButton[ButtonKey].TimerType = "AA"
+                    else
+                        if mq.TLO.Social then
+                            tmpButton[ButtonKey].Cmd = ""
+                            for i = 0, 4 do
+                                local cmd = mq.TLO.Social(cursorIndex).Cmd(i)()
+                                if cmd:len() > 0 then
+                                    tmpButton[ButtonKey].Cmd = string.format("%s%s%s", tmpButton[ButtonKey].Cmd, tmpButton[ButtonKey].Cmd:len() > 0 and "\n" or "", cmd)
+                                end
+                            end
+                        end
+                    end
                 end
 
                 for index, type in ipairs(TimerTypes) do
