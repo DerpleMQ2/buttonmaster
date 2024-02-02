@@ -1208,12 +1208,14 @@ local function DrawTabs()
     ImGui.SameLine()
     DrawTabContextMenu()
     DrawCreateTab()
+    ImGui.PushStyleColor(ImGuiCol.TabActive, 0.6, 0.8, 0.2, 0.7) -- Highlight Active Tab
+    ImGui.PushStyleColor(ImGuiCol.TabHovered, 0.6, 0.8, 0.2, 1.0) -- Brighter when hovered
 
     if ImGui.BeginTabBar("Tabs") then
         for i, set in ipairs(settings.Characters[CharConfig].Windows[1].Sets) do
             if ImGui.BeginTabItem(set) then
                 SetLabel = set
-
+                
                 -- tab edit popup
                 if ImGui.BeginPopupContextItem(set) then
                     ImGui.Text("Edit Name:")
@@ -1264,7 +1266,9 @@ local function DrawTabs()
                 ImGui.EndTabItem()
             end
         end
+        ImGui.PopStyleColor(2)
         ImGui.EndTabBar();
+        
     end
 end
 
