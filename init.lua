@@ -1326,7 +1326,16 @@ local function DrawButtonWindow(id, flags)
     openGUI, shouldDrawGUI = ImGui.Begin('Button Master', openGUI, flags)
     lastWindowX, lastWindowY = ImGui.GetWindowPos()
 
+    local theme = settings.Themes and settings.Themes[id] or nil
+    local themeStylePop = 0
+
     if openGUI and shouldDrawGUI then
+        if theme ~= nil then
+            for _, t in pairs(theme) do
+                ImGui.PushStyleColor(ImGuiCol[t.element], t.color.r, t.color.g, t.color.b, t.color.a)
+                themeStylePop = themeStylePop + 1
+            end
+        end
         if initialRun then
             ImGui.SetWindowSize(280, 318)
             initialRun = false
@@ -1342,6 +1351,9 @@ local function DrawButtonWindow(id, flags)
         DrawImportButtonPopup()
         picker:DrawIconPicker()
         DisplayItemOnCursor()
+    end
+    if themeStylePop > 0 then
+        ImGui.PopStyleColor(themeStylePop)
     end
     ImGui.End()
     ImGui.PopID()
