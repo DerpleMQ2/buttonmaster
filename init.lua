@@ -520,6 +520,48 @@ local function DrawTabContextMenu()
             ImGui.EndMenu()
         end
 
+        if ImGui.BeginMenu("Delete Set") then
+            for k, _ in pairs(settings.Sets) do
+                if ImGui.MenuItem(k) then
+                    -- clean up any references to this set.
+                    for charConfigKey, charConfigValue in pairs(settings.Characters) do
+                        for setKey, setName in pairs(charConfigValue.Windows[1].Sets) do
+                            if setName == k then
+                                settings.Characters[charConfigKey].Windows[1].Sets[setKey] = nil
+                            end
+                        end
+                    end
+                    settings.Sets[k] = nil
+                    SaveSettings(true)
+                    break
+                end
+            end
+            ImGui.EndMenu()
+        end
+
+        if ImGui.BeginMenu("Delete Hotkey") then
+            local sortedButtons = {}
+            for k, v in pairs(settings.Buttons) do table.insert(sortedButtons, { Label = v.Label, id = k, }) end
+            table.sort(sortedButtons, function(a, b) return a.Label < b.Label end)
+
+            for _, buttonData in pairs(sortedButtons) do
+                if ImGui.MenuItem(buttonData.Label) then
+                    -- clean up any references to this Button.
+                    for setNameKey, setButtons in pairs(settings.Sets) do
+                        for buttonKey, buttonName in pairs(setButtons) do
+                            if buttonName == buttonData.id then
+                                settings.Sets[setNameKey][buttonKey] = nil
+                            end
+                        end
+                    end
+                    settings.Buttons[buttonData.id] = nil
+                    SaveSettings(true)
+                    break
+                end
+            end
+            ImGui.EndMenu()
+        end
+
         if ImGui.MenuItem("Create New Set") then
             openPopup = true
         end
