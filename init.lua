@@ -1200,25 +1200,27 @@ local function DrawButtons(Set)
             if Button.Unassigned then
                 CreateButtonFromCursor(Set, ButtonIndex)
             end
-            if Button.Cmd:find("^--[ ]?lua") == nil then
-                local cmds = btnUtils.split(Button.Cmd, "\n")
-                for i, c in ipairs(cmds) do
-                    if c:len() > 0 and c:find('^#') == nil and c:find('^[-]+') == nil and c:find('^|') == nil then
-                        if c:find('^/') then
-                            -- don't use cmdf here because users might have %'s in their commands.
-                            mq.cmd(c)
+            if Button.Cmd then
+                if Button.Cmd:find("^--[ ]?lua") == nil then
+                    local cmds = btnUtils.split(Button.Cmd, "\n")
+                    for i, c in ipairs(cmds) do
+                        if c:len() > 0 and c:find('^#') == nil and c:find('^[-]+') == nil and c:find('^|') == nil then
+                            if c:find('^/') then
+                                -- don't use cmdf here because users might have %'s in their commands.
+                                mq.cmd(c)
+                            else
+                                Output('\arInvalid command on Line %d : \ax%s', i, c)
+                            end
+                            if Button.TimerType == "Seconds Timer" then
+                                Button.CooldownTimer = os.clock() + Button.Cooldown
+                            end
                         else
-                            Output('\arInvalid command on Line %d : \ax%s', i, c)
+                            Debug("Ignored: %s", c)
                         end
-                        if Button.TimerType == "Seconds Timer" then
-                            Button.CooldownTimer = os.clock() + Button.Cooldown
-                        end
-                    else
-                        Debug("Ignored: %s", c)
                     end
+                else
+                    EvaluateLua(Button.Cmd)
                 end
-            else
-                EvaluateLua(Button.Cmd)
             end
         else
             -- setup drag and drop
@@ -1376,6 +1378,8 @@ local function ButtonGUI()
     if not openGUI then return end
     local flags = ImGuiWindowFlags.NoFocusOnAppearing
     if not settings.Characters[CharConfig] then return end
+
+
 
     if settings.Characters[CharConfig].Locked then
         flags = bit32.bor(flags, ImGuiWindowFlags.NoMove, ImGuiWindowFlags.NoResize)
