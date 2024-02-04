@@ -1377,8 +1377,6 @@ local function ButtonGUI()
     local flags = ImGuiWindowFlags.NoFocusOnAppearing
     if not settings.Characters[CharConfig] then return end
 
-
-
     if settings.Characters[CharConfig].Locked then
         flags = bit32.bor(flags, ImGuiWindowFlags.NoMove, ImGuiWindowFlags.NoResize)
     end
