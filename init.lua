@@ -1377,6 +1377,8 @@ local function ButtonGUI()
     local flags = ImGuiWindowFlags.NoFocusOnAppearing
     if not settings.Characters[CharConfig] then return end
 
+
+
     if settings.Characters[CharConfig].Locked then
         flags = bit32.bor(flags, ImGuiWindowFlags.NoMove, ImGuiWindowFlags.NoResize)
     end
@@ -1581,9 +1583,6 @@ end
 local function Setup()
     LoadSettings()
     Output('\ayButton Master v2 by (\a-to_O\ay) Derple, Special.Ed (\a-to_O\ay) - \atLoaded ' .. settings_path)
-
-    mq.imgui.init('ButtonGUI', ButtonGUI)
-    mq.bind('/btn', BindBtn)
 end
 
 local args = ... or ""
@@ -1644,5 +1643,9 @@ if NeedUpgrade() then
     Output("\awButton Master Needs to upgrade! Please Run: \at'/lua run buttonmaster upgrade'\ay on a single character to upgrade and then try again!")
     mq.exit()
 end
+
+-- Make sure to start after the settings are validated.
+mq.imgui.init('ButtonGUI', ButtonGUI)
+mq.bind('/btn', BindBtn)
 
 Loop()
