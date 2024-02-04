@@ -1327,13 +1327,19 @@ local function DrawButtonWindow(id, flags)
     lastWindowX, lastWindowY = ImGui.GetWindowPos()
 
     local theme = settings.Themes and settings.Themes[id] or nil
+    local themeColorPop = 0
     local themeStylePop = 0
 
     if openGUI and shouldDrawGUI then
         if theme ~= nil then
             for _, t in pairs(theme) do
-                ImGui.PushStyleColor(ImGuiCol[t.element], t.color.r, t.color.g, t.color.b, t.color.a)
-                themeStylePop = themeStylePop + 1
+                if t.color then
+                    ImGui.PushStyleColor(ImGuiCol[t.element], t.color.r, t.color.g, t.color.b, t.color.a)
+                    themeColorPop = themeColorPop + 1
+                elseif t.stylevar then
+                    ImGui.PushStyleVar(ImGuiStyleVar[t.stylevar], t.value)
+                    themeStylePop = themeStylePop + 1
+                end
             end
         end
         if initialRun then
@@ -1352,8 +1358,11 @@ local function DrawButtonWindow(id, flags)
         picker:DrawIconPicker()
         DisplayItemOnCursor()
     end
+    if themeColorPop > 0 then
+        ImGui.PopStyleColor(themeColorPop)
+    end
     if themeStylePop > 0 then
-        ImGui.PopStyleColor(themeStylePop)
+        ImGui.PopStyleVar(themeStylePop)
     end
     ImGui.End()
     ImGui.PopID()
