@@ -1077,7 +1077,7 @@ local function DrawEditButtonPopup()
                 elseif attachmentType == "social" then
                     tmpButton[ButtonKey].Label = buttonText
                     if cursorIndex >= 120 then
-                        tmpButton[ButtonKey].Cmd = string.format("/alt act %d", cursorIndex)
+                        tmpButton[ButtonKey].Cmd = string.format("/alt act %d", cursorIndex - 120) -- Index - 120 is the AA id.
                         tmpButton[ButtonKey].Icon = nil
                         tmpButton[ButtonKey].Cooldown = buttonText
                         tmpButton[ButtonKey].TimerType = "AA"
@@ -1087,7 +1087,8 @@ local function DrawEditButtonPopup()
                             for i = 0, 4 do
                                 local cmd = mq.TLO.Social(cursorIndex).Cmd(i)()
                                 if cmd:len() > 0 then
-                                    tmpButton[ButtonKey].Cmd = string.format("%s%s%s", tmpButton[ButtonKey].Cmd, tmpButton[ButtonKey].Cmd:len() > 0 and "\n" or "", cmd)
+                                    tmpButton[ButtonKey].Cmd = string.format("%s%s%s", tmpButton[ButtonKey].Cmd,
+                                        tmpButton[ButtonKey].Cmd:len() > 0 and "\n" or "", cmd)
                                 end
                             end
                         end
@@ -1642,7 +1643,8 @@ end)
 Setup()
 
 if NeedUpgrade() then
-    Output("\awButton Master Needs to upgrade! Please Run: \at'/lua run buttonmaster upgrade'\ay on a single character to upgrade and then try again!")
+    Output(
+    "\awButton Master Needs to upgrade! Please Run: \at'/lua run buttonmaster upgrade'\ay on a single character to upgrade and then try again!")
     mq.exit()
 end
 
