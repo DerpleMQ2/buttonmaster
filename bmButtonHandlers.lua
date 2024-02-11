@@ -3,12 +3,7 @@ local btnUtils           = require('lib.buttonUtils')
 
 -- Icon Rendering
 local animItems          = mq.FindTextureAnimation("A_DragItem")
-local animBox            = mq.FindTextureAnimation("A_RecessedBox")
 local animSpellIcons     = mq.FindTextureAnimation('A_SpellIcons')
-local animSpellGemIcons  = mq.FindTextureAnimation('A_SpellGems')
-local animSpellGemHolder = mq.FindTextureAnimation('A_SpellGemHolder')
-local animSpellGemBG     = mq.FindTextureAnimation('A_SpellGemBackground')
-local animSquareButton   = mq.FindTextureAnimation('A_SquareBtnNormal')
 
 ---@class BMButtonHandlers
 local BMButtonHandlers   = {}
@@ -131,7 +126,7 @@ end
 ---@param size number # button size
 function BMButtonHandlers.RenderButtonIcon(Button, cursorScreenPos, size)
     if not Button.Icon and (not Button.IconLua or Button.IconLua:len() == 0) then
-        return BMButtonHandlers.RenderButtonRect(Button, cursorScreenPos, size)
+        return BMButtonHandlers.RenderButtonRect(Button, cursorScreenPos, size, 255)
     end
 
     local draw_list = ImGui.GetWindowDrawList()
@@ -163,12 +158,12 @@ end
 ---@param Button table # BMButtonConfig
 ---@param cursorScreenPos ImVec2 # cursor position on screen
 ---@param size number # button size
-function BMButtonHandlers.RenderButtonRect(Button, cursorScreenPos, size)
+function BMButtonHandlers.RenderButtonRect(Button, cursorScreenPos, size, alpha)
     local draw_list = ImGui.GetWindowDrawList()
     local buttonStyle = ImGui.GetStyleColorVec4(ImGuiCol.Button)
     local Colors = btnUtils.split(Button.ButtonColorRGB, ",")
     local buttonBGCol = IM_COL32(tonumber(Colors[1]) or (buttonStyle.x * 255), tonumber(Colors[2]) or (buttonStyle.y * 255), tonumber(Colors[3]) or (buttonStyle.z * 255),
-        buttonStyle.w * 255)
+        buttonStyle.w * alpha)
 
     draw_list:AddRectFilled(cursorScreenPos, ImVec2(cursorScreenPos.x + size, cursorScreenPos.y + size), buttonBGCol)
 end
@@ -242,7 +237,9 @@ function BMButtonHandlers.Render(Button, size, renderLabel)
 
     BMButtonHandlers.RenderButtonIcon(Button, cursorScreenPos, size)
     clicked = ImGui.Selectable('', false, ImGuiSelectableFlags.DontClosePopups, size, size)
-
+    if ImGui.IsItemHovered() then
+        BMButtonHandlers.RenderButtonRect(Button, cursorScreenPos, size, 200)
+    end
     ImGui.SetWindowFontScale(1)
 
     BMButtonHandlers.RenderButtonCooldown(Button, cursorScreenPos, size)

@@ -1,7 +1,6 @@
 local mq                            = require('mq')
 local btnUtils                      = require('lib.buttonUtils')
 local BMButtonHandlers              = require('bmButtonHandlers')
-local picker                        = require('lib.IconPicker').new()
 
 -- Icon Rendering
 local animItems                     = mq.FindTextureAnimation("A_DragItem")
@@ -17,6 +16,7 @@ local ICON_HEIGHT                   = 40
 local COUNT_X_OFFSET                = 39
 local COUNT_Y_OFFSET                = 23
 local EQ_ICON_OFFSET                = 500
+local WINDOW_SETTINGS_ICON_SIZE     = 22
 
 local editTabPopup                  = "edit_tab_popup"
 
@@ -55,7 +55,7 @@ function BMHotbarClass.new(id, createFresh)
     local newBMHotbar = setmetatable({ id = id, }, BMHotbarClass)
 
     if createFresh then
-        BMSettings:GetCharConfig().Windows[id] = { Visible = true, Sets = {}, Locked = false, HideTitleBar = false, }
+        BMSettings:GetCharConfig().Windows[id] = { Visible = true, Sets = {}, Locked = false, HideTitleBar = false, CompactMode = false, }
 
         -- if this character doesn't have the sections in the config, create them
         newBMHotbar.updateWindowPosSize = true
@@ -99,7 +99,6 @@ function BMHotbarClass:RenderHotbar(flags)
 
         self:RenderTabs()
         self:RenderImportButtonPopup()
-        picker:RenderIconPicker()
         self:DisplayItemOnCursor()
     end
     if themeColorPop > 0 then
@@ -115,70 +114,96 @@ end
 function BMHotbarClass:RenderTabs()
     local lockedIcon = BMSettings:GetCharacterWindow(self.id).Locked and Icons.FA_LOCK .. '##lockTabButton' or
         Icons.FA_UNLOCK .. '##lockTablButton'
-    if ImGui.Button(lockedIcon) then
-        --ImGuiWindowFlags.NoMove
-        BMSettings:GetCharacterWindow(self.id).Locked = not BMSettings:GetCharacterWindow(self.id).Locked
-        BMSettings:SaveSettings(true)
-    end
 
-    ImGui.SameLine()
-    ImGui.Button("Settings")
-    ImGui.SameLine()
-    self:RenderTabContextMenu()
-    self:RenderCreateTab()
+    if BMSettings:GetCharacterWindow(self.id).CompactMode then
+        local start_x, start_y = ImGui.GetCursorPos()
+        if ImGui.Button(lockedIcon, WINDOW_SETTINGS_ICON_SIZE, WINDOW_SETTINGS_ICON_SIZE) then
+            --ImGuiWindowFlags.NoMove
+            BMSettings:GetCharacterWindow(self.id).Locked = not BMSettings:GetCharacterWindow(self.id).Locked
+            BMSettings:SaveSettings(true)
+        end
 
-    if ImGui.BeginTabBar("Tabs") then
-        if #BMSettings:GetCharacterWindowSets(self.id) > 0 then
-            for i, set in ipairs(BMSettings:GetCharacterWindowSets(self.id)) do
-                if ImGui.BeginTabItem(set) then
-                    SetLabel = set
+        local style = ImGui.GetStyle()
+        ImGui.SetCursorPosY(ImGui.GetCursorPosY() + (style.ItemSpacing.y / 2))
 
-                    -- tab edit popup
-                    if ImGui.BeginPopupContextItem(set) then
-                        ImGui.Text("Edit Name:")
-                        local tmp, selected = ImGui.InputText("##edit", set, 0)
-                        if selected then self.newSetName = tmp end
-                        if ImGui.Button("Save") then
-                            BMEditPopup:CloseEditPopup()
-                            picker:SetClosed()
-                            local newSetLabel = self.newSetName
-                            if self.newSetName ~= nil then
-                                BMSettings:GetCharacterWindowSets(self.id)[i] = self.newSetName
+        ImGui.Button(Icons.MD_SETTINGS, WINDOW_SETTINGS_ICON_SIZE, WINDOW_SETTINGS_ICON_SIZE)
+        ImGui.SameLine()
+        self:RenderTabContextMenu()
+        self:RenderCreateTab()
 
-                                -- move the old button set to the new name
-                                BMSettings:GetSettings().Sets[newSetLabel], BMSettings:GetSettings().Sets[SetLabel] = BMSettings:GetSettings().Sets[SetLabel], nil
+        ImGui.SetCursorPos(ImVec2(start_x + WINDOW_SETTINGS_ICON_SIZE + (style.ItemSpacing.x), start_y))
 
-                                -- update the character button set name
-                                for curCharKey, curCharData in pairs(BMSettings:GetSettings().Characters) do
-                                    for windowIdx, windowData in ipairs(curCharData.Windows) do
-                                        for setIdx, oldSetName in ipairs(windowData.Sets) do
-                                            if oldSetName == set then
-                                                btnUtils.Output(string.format(
-                                                    "\awUpdating section '\ag%s\aw' renaming \am%s\aw => \at%s", curCharKey,
-                                                    oldSetName, self.newSetName))
-                                                BMSettings:GetSettings().Characters[curCharKey].Windows[windowIdx].Sets[setIdx] = self.newSetName
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, 0, 0)
+        ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, 0, 0)
+        ImGui.BeginChild("##buttons_child", nil, nil, bit32.bor(ImGuiWindowFlags.AlwaysAutoResize))
+        self:RenderButtons(BMSettings:GetCharacterWindowSets(self.id)[1])
+        ImGui.EndChild()
+        ImGui.PopStyleVar(2)
+    else
+        if ImGui.Button(lockedIcon, WINDOW_SETTINGS_ICON_SIZE, WINDOW_SETTINGS_ICON_SIZE) then
+            --ImGuiWindowFlags.NoMove
+            BMSettings:GetCharacterWindow(self.id).Locked = not BMSettings:GetCharacterWindow(self.id).Locked
+            BMSettings:SaveSettings(true)
+        end
+
+        ImGui.SameLine()
+        ImGui.Button(Icons.MD_SETTINGS, WINDOW_SETTINGS_ICON_SIZE, WINDOW_SETTINGS_ICON_SIZE)
+        ImGui.SameLine()
+        self:RenderTabContextMenu()
+        self:RenderCreateTab()
+
+        if ImGui.BeginTabBar("Tabs") then
+            if #BMSettings:GetCharacterWindowSets(self.id) > 0 then
+                for i, set in ipairs(BMSettings:GetCharacterWindowSets(self.id)) do
+                    if ImGui.BeginTabItem(set) then
+                        SetLabel = set
+
+                        -- tab edit popup
+                        if ImGui.BeginPopupContextItem(set) then
+                            ImGui.Text("Edit Name:")
+                            local tmp, selected = ImGui.InputText("##edit", set, 0)
+                            if selected then self.newSetName = tmp end
+                            if ImGui.Button("Save") then
+                                BMEditPopup:CloseEditPopup()
+                                local newSetLabel = self.newSetName
+                                if self.newSetName ~= nil then
+                                    BMSettings:GetCharacterWindowSets(self.id)[i] = self.newSetName
+
+                                    -- move the old button set to the new name
+                                    BMSettings:GetSettings().Sets[newSetLabel], BMSettings:GetSettings().Sets[SetLabel] = BMSettings:GetSettings().Sets[SetLabel], nil
+
+                                    -- update the character button set name
+                                    for curCharKey, curCharData in pairs(BMSettings:GetSettings().Characters) do
+                                        for windowIdx, windowData in ipairs(curCharData.Windows) do
+                                            for setIdx, oldSetName in ipairs(windowData.Sets) do
+                                                if oldSetName == set then
+                                                    btnUtils.Output(string.format(
+                                                        "\awUpdating section '\ag%s\aw' renaming \am%s\aw => \at%s", curCharKey,
+                                                        oldSetName, self.newSetName))
+                                                    BMSettings:GetSettings().Characters[curCharKey].Windows[windowIdx].Sets[setIdx] = self.newSetName
+                                                end
                                             end
                                         end
                                     end
+
+                                    -- update set to the new name so the button render doesn't fail
+                                    SetLabel = newSetLabel
+                                    BMSettings:SaveSettings(true)
                                 end
-
-                                -- update set to the new name so the button render doesn't fail
-                                SetLabel = newSetLabel
-                                BMSettings:SaveSettings(true)
+                                ImGui.CloseCurrentPopup()
                             end
-                            ImGui.CloseCurrentPopup()
+                            ImGui.EndPopup()
                         end
-                        ImGui.EndPopup()
-                    end
 
-                    self:RenderButtons(SetLabel)
-                    ImGui.EndTabItem()
+                        self:RenderButtons(SetLabel)
+                        ImGui.EndTabItem()
+                    end
                 end
             end
         else
-            ImGui.Text("No Sets Added! Add one by right-clicking on Settings.")
+            ImGui.Text(string.format("No Sets Added! Add one by right-clicking on %s", Icons.MD_SETTINGS))
         end
-        ImGui.EndTabBar();
+        ImGui.EndTabBar()
     end
 end
 
@@ -338,6 +363,10 @@ function BMHotbarClass:RenderTabContextMenu()
                 BMSettings:GetCharacterWindow(self.id).HideTitleBar = not BMSettings:GetCharacterWindow(self.id).HideTitleBar
                 BMSettings:SaveSettings(true)
             end
+            if ImGui.MenuItem((BMSettings:GetCharacterWindow(self.id).CompactMode and "Normal" or "Compact") .. " Mode") then
+                BMSettings:GetCharacterWindow(self.id).CompactMode = not BMSettings:GetCharacterWindow(self.id).CompactMode
+                BMSettings:SaveSettings(true)
+            end
             -- TODO: Make this a reference to a character since it can dynamically change.
             --if ImGui.MenuItem("Save Layout as Default") then
             --    BMSettings:GetSettings().Defaults = {
@@ -368,6 +397,7 @@ function BMHotbarClass:RenderTabContextMenu()
                 y = self.lastWindowY,
                 windowId = self.id,
                 hideTitleBar = BMSettings:GetCharacterWindow(self.id).HideTitleBar,
+                compactMode = BMSettings:GetCharacterWindow(self.id).CompactMode,
             })
         end
 
@@ -621,13 +651,14 @@ function BMHotbarClass:RenderCreateTab()
     end
 end
 
-function BMHotbarClass:UpdatePosition(width, height, x, y, hideTitleBar)
+function BMHotbarClass:UpdatePosition(width, height, x, y, hideTitleBar, compactMode)
     self.updateWindowPosSize                            = true
     self.newWidth                                       = width
     self.newHeight                                      = height
     self.newX                                           = x
     self.newY                                           = y
     BMSettings:GetCharacterWindow(self.id).HideTitleBar = hideTitleBar
+    BMSettings:GetCharacterWindow(self.id).CompactMode  = compactMode
     BMSettings:SaveSettings(true)
 end
 

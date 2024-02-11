@@ -38,7 +38,7 @@ local function ButtonGUI()
 
     -- Set this way up here so the theme can override.
     ImGui.PushStyleColor(ImGuiCol.ButtonHovered, 0.9, 0.9, 0.9, 0.5)
-    ImGui.PushStyleColor(ImGuiCol.HeaderHovered, 0.9, 0.9, 0.9, 0.5)
+    ImGui.PushStyleColor(ImGuiCol.HeaderHovered, 0.9, 0.9, 0.9, 0.0)
     for hotbarId, bmHotbar in ipairs(BMHotbars) do
         local flags = ImGuiWindowFlags.NoFocusOnAppearing
         if BMSettings:GetCharacterWindow(hotbarId).HideTitleBar then
@@ -107,7 +107,7 @@ local script_actor = ButtonActors.register(function(message)
     elseif msg["event"] == "CopyLoc" then
         if msg.windowId <= #BMHotbars then
             BMHotbars[msg.windowId]:UpdatePosition((tonumber(msg["width"]) or 100), (tonumber(msg["height"]) or 100), (tonumber(msg["x"]) or 0), (tonumber(msg["y"]) or 0),
-                msg["hideTitleBar"])
+                msg["hideTitleBar"], msg["compactMode"])
             btnUtils.Debug("\agReplicating dimentions: \atw\ax(\am%d\ax) \ath\ax(\am%d\ax) \atx\ax(\am%d\ax) \aty\ax(\am%d\ax)",
                 BMSettings.Globals.newWidth,
                 BMSettings.Globals.newHeight,

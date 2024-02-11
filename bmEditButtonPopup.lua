@@ -167,6 +167,8 @@ function BMButtonEditor:RenderButtonEditUI(renderButton, enableShare, enableEdit
         ImGui.SameLine()
     end
 
+    picker:RenderIconPicker()
+
     local colorChanged = false
     -- color pickers
     colorChanged = btnUtils.RenderColorPicker(string.format("##ButtonColorPicker1_%s", renderButton.Label), 'Button', renderButton,
