@@ -68,7 +68,7 @@ function IconPicker:RenderTab(getterFn, maxIcon)
     end
 end
 
-function IconPicker:DrawIconPicker()
+function IconPicker:RenderIconPicker()
     if not self.Open then return end
     self.Open, self.Draw = ImGui.Begin('Icon Picker', self.Open, ImGuiWindowFlags.None)
     if self.Draw then

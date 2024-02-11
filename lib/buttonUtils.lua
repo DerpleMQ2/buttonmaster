@@ -1,7 +1,25 @@
-local base64 = require('lib.base64')
+local mq                = require('mq')
+local base64            = require('lib.base64')
 
-local ButtonUtils = {}
-ButtonUtils.__index = ButtonUtils
+local ButtonUtils       = {}
+ButtonUtils.__index     = ButtonUtils
+ButtonUtils.enableDebug = false
+
+function ButtonUtils.PCallString(str)
+    local func, err = load(str)
+    if not func then
+        return false, err
+    end
+
+    return pcall(func)
+end
+
+function ButtonUtils.EvaluateLua(str)
+    local runEnv = [[mq = require('mq')
+        %s
+        ]]
+    return ButtonUtils.PCallString(string.format(runEnv, str))
+end
 
 function ButtonUtils.serializeTable(val, name, skipnewlines, depth)
     skipnewlines = skipnewlines or false
@@ -130,6 +148,54 @@ function ButtonUtils.RenderOptionToggle(id, text, on)
     return state, toggled
 end
 
+function ButtonUtils.RenderOptionNumber(id, text, cur, min, max, step)
+    ImGui.PushID("##num_spin_" .. id)
+    ImGui.PushItemWidth(100)
+    local input, changed = ImGui.InputInt(text, cur, step, step * 10)
+    ImGui.PopItemWidth()
+    ImGui.PopID()
+
+    if input > max then input = max end
+    if input < min then input = min end
+
+    changed = cur ~= input
+    return input, changed
+end
+
+function ButtonUtils.RenderColorPicker(id, buttonTypeName, renderButton, key)
+    local btnColor = {}
+    local changed = false
+
+    if renderButton[key] ~= nil then
+        local tColors = ButtonUtils.split(renderButton[key], ",")
+        for i, v in ipairs(tColors) do btnColor[i] = tonumber(v / 255) end
+    else
+        btnColor[1] = 0
+        btnColor[2] = 0
+        btnColor[3] = 0
+    end
+
+    ImGui.PushID(id)
+    local col, used = ImGui.ColorEdit3(string.format("%s Color", buttonTypeName), btnColor, ImGuiColorEditFlags.NoInputs)
+    if used then
+        changed = true
+        btnColor = ButtonUtils.shallowcopy(col)
+        renderButton[key] = string.format("%d,%d,%d", math.floor(col[1] * 255),
+            math.floor(col[2] * 255), math.floor(col[3] * 255))
+    end
+
+    if ImGui.BeginPopupContextItem(id) then
+        if ImGui.MenuItem(string.format("Clear %s Color", buttonTypeName)) then
+            renderButton[key] = nil
+            BMSettings:SaveSettings(true)
+        end
+        ImGui.EndPopup()
+    end
+    ImGui.PopID()
+
+    return changed
+end
+
 function ButtonUtils.gsplit(text, pattern, plain)
     local splitStart, length = 1, #text
     return function()
@@ -233,6 +299,20 @@ function ButtonUtils.shallowcopy(orig)
         copy = orig
     end
     return copy
+end
+
+function ButtonUtils.Output(msg, ...)
+    local formatted = msg
+    if ... then
+        formatted = string.format(msg, ...)
+    end
+
+    printf('\aw[' .. mq.TLO.Time() .. '] [\aoButton Master\aw] ::\a-t %s', formatted)
+end
+
+function ButtonUtils.Debug(msg, ...)
+    if not ButtonUtils.enableDebug then return end
+    ButtonUtils.Output('\ay<\atDEBUG\ay>\aw ' .. msg, ...)
 end
 
 return ButtonUtils
