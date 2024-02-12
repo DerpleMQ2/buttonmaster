@@ -226,28 +226,28 @@ end
 ---@param Button table # BMButtonConfig
 ---@param size number # size to render the button as
 ---@param renderLabel boolean # render the label on top or not
+---@param fontScale number # Font scale for text
 ---@return boolean # clicked
-function BMButtonHandlers.Render(Button, size, renderLabel)
+function BMButtonHandlers.Render(Button, size, renderLabel, fontScale)
     local evaluatedLabel = renderLabel and BMButtonHandlers.ResolveButtonLabel(Button) or ""
     local clicked = false
 
     local cursorScreenPos = ImGui.GetCursorScreenPosVec()
-
-    ImGui.SetWindowFontScale(BMSettings:GetSettings().Global.Font or 1)
 
     BMButtonHandlers.RenderButtonIcon(Button, cursorScreenPos, size)
     clicked = ImGui.Selectable('', false, ImGuiSelectableFlags.DontClosePopups, size, size)
     if ImGui.IsItemHovered() then
         BMButtonHandlers.RenderButtonRect(Button, cursorScreenPos, size, 200)
     end
-    ImGui.SetWindowFontScale(1)
 
     BMButtonHandlers.RenderButtonCooldown(Button, cursorScreenPos, size)
 
     -- label and tooltip
     if renderLabel then
+        ImGui.SetWindowFontScale(fontScale)
         BMButtonHandlers.RenderButtonLabel(Button, cursorScreenPos, size, evaluatedLabel)
         BMButtonHandlers.RenderButtonTooltip(Button, evaluatedLabel)
+        ImGui.SetWindowFontScale(1)
     end
 
     return clicked

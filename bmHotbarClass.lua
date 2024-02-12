@@ -296,9 +296,9 @@ function BMHotbarClass:RenderTabContextMenu()
 
         if ImGui.BeginMenu("Button Size") then
             for i = 3, 10 do
-                local checked = BMSettings:GetSettings().Global.ButtonSize == i
+                local checked = BMSettings:GetCharacterWindow(self.id).ButtonSize == i
                 if ImGui.MenuItem(tostring(i), nil, checked) then
-                    BMSettings:GetSettings().Global.ButtonSize = i
+                    BMSettings:GetCharacterWindow(self.id).ButtonSize = i
                     self.buttonSizeDirty = true
                     BMSettings:SaveSettings(true)
                     break
@@ -310,27 +310,27 @@ function BMHotbarClass:RenderTabContextMenu()
         local font_scale = {
             {
                 label = "Tiny",
-                size = 0.8,
+                size = 8,
             },
             {
                 label = "Small",
-                size = 0.9,
+                size = 9,
             },
             {
                 label = "Normal",
-                size = 1.0,
+                size = 10,
             },
             {
                 label = "Large",
-                size  = 1.1,
+                size  = 11,
             },
         }
 
         if ImGui.BeginMenu("Font Scale") then
             for i, v in ipairs(font_scale) do
-                local checked = BMSettings:GetSettings().Global.Font == v.size
+                local checked = BMSettings:GetCharacterWindow(self.id).Font == v.size
                 if ImGui.MenuItem(v.label, nil, checked) then
-                    BMSettings:GetSettings().Global.Font = v.size
+                    BMSettings:GetCharacterWindow(self.id).Font = v.size
                     BMSettings:SaveSettings(true)
                     break
                 end
@@ -497,7 +497,7 @@ function BMHotbarClass:RenderButtons(Set)
         self:RecalculateVisibleButtons(Set)
     end
 
-    local btnSize = (BMSettings:GetSettings().Global.ButtonSize or 6) * 10
+    local btnSize = (BMSettings:GetCharacterWindow(self.id).ButtonSize or 6) * 10
 
     local renderButtonCount = self.visibleButtonCount
 
@@ -507,7 +507,7 @@ function BMHotbarClass:RenderButtons(Set)
 
         local buttonID = string.format("##Button_%s_%d", Set, ButtonIndex)
         ImGui.PushID(buttonID)
-        clicked = BMButtonHandlers.Render(button, btnSize, true)
+        clicked = BMButtonHandlers.Render(button, btnSize, true, (BMSettings:GetCharacterWindow(self.id).Font or 10) / 10)
         ImGui.PopID()
 
         -- TODO Move this to button config class and out of the UI thread.
@@ -554,7 +554,7 @@ function BMHotbarClass:RecalculateVisibleButtons(Set)
     local style = ImGui.GetStyle()                -- this will get us ItemSpacing.x which is the amount of space between buttons
 
     -- global button configs
-    local btnSize = (BMSettings:GetSettings().Global.ButtonSize or 6) * 10
+    local btnSize = (BMSettings:GetCharacterWindow(self.id).ButtonSize or 6) * 10
     self.cachedCols = math.floor((self.lastWindowWidth - cursorX) / (btnSize + style.ItemSpacing.x))
     self.cachedRows = math.floor((self.lastWindowHeight - cursorY) / (btnSize + style.ItemSpacing.y))
 

@@ -289,7 +289,7 @@ function BMButtonEditor:RenderIconPicker(renderButton)
     if renderButton.Icon then
         local objectID = string.format("##IconPicker_%s_%d", self.editButtonSet, self.editButtonIndex)
         ImGui.PushID(objectID)
-        if BMButtonHandlers.Render(renderButton, 20, false) then
+        if BMButtonHandlers.Render(renderButton, 20, false, 1) then
             picker:SetOpen()
         end
         ImGui.PopID()

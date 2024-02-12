@@ -10,6 +10,7 @@ BMSettings.CharConfig           = string.format("%s_%s", mq.TLO.EverQuest.Server
 BMSettings.Constants            = {}
 
 BMSettings.Globals              = {}
+BMSettings.Globals.Version      = 7
 
 BMSettings.Constants.TimerTypes = {
     "Seconds Timer",
@@ -38,7 +39,7 @@ function BMSettings:SaveSettings(doBroadcast)
 end
 
 function BMSettings:NeedUpgrade()
-    return (self.settings.Version or 0) < 6
+    return (self.settings.Version or 0) < BMSettings.Globals.Version
 end
 
 function BMSettings:GetSettings()
@@ -230,7 +231,6 @@ function BMSettings:ConvertToLatestConfigVersion()
         needsSave = true
         newSettings = self.settings
         newSettings.Version = 5
-        print(self.settings.Characters)
         for charKey, _ in pairs(self.settings.Characters) do
             if self.settings.Characters[charKey] and self.settings.Characters[charKey].Sets ~= nil then
                 newSettings.Characters[charKey].Windows = {}
@@ -241,14 +241,13 @@ function BMSettings:ConvertToLatestConfigVersion()
             end
         end
         if needsSave then
-            -- be nice and make a backup.
             self.settings = newSettings
             self:SaveSettings(true)
             btnUtils.Output("\atUpgraded to \amv5\at!")
         end
     end
 
-    -- versioln 6
+    -- version 6
     -- Moved TitleBar/Locked into the window settings
     -- Removed Button Count
     -- Removed Defaults for now
@@ -271,11 +270,34 @@ function BMSettings:ConvertToLatestConfigVersion()
         newSettings.Global.ButtonCount = nil
 
         if needsSave then
-            -- be nice and make a backup.
-
             self.settings = newSettings
             self:SaveSettings(true)
             btnUtils.Output("\atUpgraded to \amv6\at!")
+        end
+    end
+
+    -- version 7
+    -- moved ButtonSize and Font to each hotbar
+    if (self.settings.Version or 0) < 7 then
+        mq.pickle(mq.configDir .. "/ButtonMaster-v6-" .. os.date("%m-%d-%y-%H-%M-%S") .. ".lua", self.settings)
+        needsSave = true
+        newSettings = self.settings
+        newSettings.Version = 7
+
+        for _, curCharData in pairs(newSettings.Characters) do
+            for _, windowData in ipairs(curCharData.Windows) do
+                windowData.Font = (newSettings.Global.Font or 1) * 10
+                windowData.ButtonSize = newSettings.Global.ButtnSize or 6
+            end
+        end
+
+        newSettings.Global.Font = nil
+        newSettings.Global.ButtonSize = nil
+
+        if needsSave then
+            self.settings = newSettings
+            self:SaveSettings(true)
+            btnUtils.Output("\atUpgraded to \amv%d\at!", BMSettings.Globals.Version)
         end
     end
 end
@@ -292,11 +314,7 @@ function BMSettings:LoadSettings()
         else
             printf("\ayUnable to load legacy settings file(%s), creating a new config!", old_settings_path)
             self.settings = {
-                Version = 5,
-                Global = {
-                    ButtonSize = 6,
-                    ButtonCount = 4,
-                },
+                Version = BMSettings.Globals.Version,
                 Sets = {
                     ['Primary'] = { 'Button_1', 'Button_2', 'Button_3', },
                     ['Movement'] = { 'Button_4', },
