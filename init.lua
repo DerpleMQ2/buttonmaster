@@ -54,8 +54,9 @@ local function ButtonGUI()
 end
 
 local function Setup()
-    BMSettings:LoadSettings()
-    for idx, _ in ipairs(BMSettings:GetCharConfig().Windows) do
+    if not BMSettings:LoadSettings() then return end
+
+    for idx, _ in ipairs(BMSettings:GetCharConfig().Windows or {}) do
         table.insert(BMHotbars, BMHotbarClass.new(idx, false))
     end
 

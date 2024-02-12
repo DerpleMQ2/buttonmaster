@@ -142,84 +142,87 @@ end
 function BMSettings:ConvertToLatestConfigVersion()
     self:LoadSettings()
     local needsSave = false
-    -- version 2
-    -- Run through all settings and make sure they are in the new format.
-    for key, value in pairs(self.settings or {}) do
-        -- TODO: Make buttons a seperate table instead of doing the string compare crap.
-        if type(value) == 'table' then
-            if key:find("^(Button_)") and value.Cmd1 or value.Cmd2 or value.Cmd3 or value.Cmd4 or value.Cmd5 then
-                btnUtils.Output("Key: %s Needs Converted!", key)
-                value.Cmd  = string.format("%s\n%s\n%s\n%s\n%s\n%s", value.Cmd or '', value.Cmd1 or '', value.Cmd2 or '',
-                    value.Cmd3 or '', value.Cmd4 or '', value.Cmd5 or '')
-                value.Cmd  = value.Cmd:gsub("\n+", "\n")
-                value.Cmd  = value.Cmd:gsub("\n$", "")
-                value.Cmd  = value.Cmd:gsub("^\n", "")
-                value.Cmd1 = nil
-                value.Cmd2 = nil
-                value.Cmd3 = nil
-                value.Cmd4 = nil
-                value.Cmd5 = nil
-                needsSave  = true
-                btnUtils.Output("\atUpgraded to \amv2\at!")
-            end
-        end
-    end
-
-    -- version 3
-    -- Okay now that a similar but lua-based config is stabalized the next pass is going to be
-    -- cleaning up the data model so we aren't doing a ton of string compares all over.
     local newSettings = {}
-    newSettings.Buttons = {}
-    newSettings.Sets = {}
-    newSettings.Characters = {}
-    newSettings.Global = self.settings.Global
-    for key, value in pairs(self.settings) do
-        local sStart, sEnd = key:find("^Button_")
-        if sStart then
-            local newKey = key --key:sub(sEnd + 1)
-            btnUtils.Output("Old Key: \am%s\ax, New Key: \at%s\ax", key, newKey)
-            newSettings.Buttons[newKey] = newSettings.Buttons[newKey] or {}
+
+    if not self.settings.Version then
+        -- version 2
+        -- Run through all settings and make sure they are in the new format.
+        for key, value in pairs(self.settings or {}) do
+            -- TODO: Make buttons a seperate table instead of doing the string compare crap.
             if type(value) == 'table' then
-                for subKey, subValue in pairs(value) do
-                    newSettings.Buttons[newKey][subKey] = tostring(subValue)
+                if key:find("^(Button_)") and value.Cmd1 or value.Cmd2 or value.Cmd3 or value.Cmd4 or value.Cmd5 then
+                    btnUtils.Output("Key: %s Needs Converted!", key)
+                    value.Cmd  = string.format("%s\n%s\n%s\n%s\n%s\n%s", value.Cmd or '', value.Cmd1 or '', value.Cmd2 or '',
+                        value.Cmd3 or '', value.Cmd4 or '', value.Cmd5 or '')
+                    value.Cmd  = value.Cmd:gsub("\n+", "\n")
+                    value.Cmd  = value.Cmd:gsub("\n$", "")
+                    value.Cmd  = value.Cmd:gsub("^\n", "")
+                    value.Cmd1 = nil
+                    value.Cmd2 = nil
+                    value.Cmd3 = nil
+                    value.Cmd4 = nil
+                    value.Cmd5 = nil
+                    needsSave  = true
+                    btnUtils.Output("\atUpgraded to \amv2\at!")
                 end
             end
-            needsSave = true
         end
-        sStart, sEnd = key:find("^Set_")
-        if sStart then
-            local newKey = key:sub(sEnd + 1)
-            btnUtils.Output("Old Key: \am%s\ax, New Key: \at%s\ax", key, newKey)
-            newSettings.Sets[newKey] = value
-            needsSave                = true
-        end
-        sStart, sEnd = key:find("^Char_(.*)_Config")
-        if sStart then
-            local newKey = key:sub(sStart + 5, sEnd - 7)
-            btnUtils.Output("Old Key: \am%s\ax, New Key: \at%s\ax", key, newKey)
-            newSettings.Characters[newKey] = newSettings.Characters[newKey] or {}
-            if type(value) == 'table' then
-                for subKey, subValue in pairs(value) do
-                    newSettings.Characters[newKey].Sets = newSettings.Characters[newKey].Sets or {}
-                    if type(subKey) == "number" then
-                        table.insert(newSettings.Characters[newKey].Sets, subValue)
-                    else
-                        newSettings.Characters[newKey][subKey] = subValue
+
+        -- version 3
+        -- Okay now that a similar but lua-based config is stabalized the next pass is going to be
+        -- cleaning up the data model so we aren't doing a ton of string compares all over.
+        newSettings.Buttons = {}
+        newSettings.Sets = {}
+        newSettings.Characters = {}
+        newSettings.Global = self.settings.Global
+        for key, value in pairs(self.settings) do
+            local sStart, sEnd = key:find("^Button_")
+            if sStart then
+                local newKey = key --key:sub(sEnd + 1)
+                btnUtils.Output("Old Key: \am%s\ax, New Key: \at%s\ax", key, newKey)
+                newSettings.Buttons[newKey] = newSettings.Buttons[newKey] or {}
+                if type(value) == 'table' then
+                    for subKey, subValue in pairs(value) do
+                        newSettings.Buttons[newKey][subKey] = tostring(subValue)
                     end
                 end
+                needsSave = true
             end
+            sStart, sEnd = key:find("^Set_")
+            if sStart then
+                local newKey = key:sub(sEnd + 1)
+                btnUtils.Output("Old Key: \am%s\ax, New Key: \at%s\ax", key, newKey)
+                newSettings.Sets[newKey] = value
+                needsSave                = true
+            end
+            sStart, sEnd = key:find("^Char_(.*)_Config")
+            if sStart then
+                local newKey = key:sub(sStart + 5, sEnd - 7)
+                btnUtils.Output("Old Key: \am%s\ax, New Key: \at%s\ax", key, newKey)
+                newSettings.Characters[newKey] = newSettings.Characters[newKey] or {}
+                if type(value) == 'table' then
+                    for subKey, subValue in pairs(value) do
+                        newSettings.Characters[newKey].Sets = newSettings.Characters[newKey].Sets or {}
+                        if type(subKey) == "number" then
+                            table.insert(newSettings.Characters[newKey].Sets, subValue)
+                        else
+                            newSettings.Characters[newKey][subKey] = subValue
+                        end
+                    end
+                end
 
-            needsSave = true
+                needsSave = true
+            end
         end
-    end
 
-    if needsSave then
-        -- be nice and make a backup.
-        mq.pickle(mq.configDir .. "/ButtonMaster-v3-" .. os.date("%m-%d-%y-%H-%M-%S") .. ".lua", self.settings)
-        self.settings = newSettings
-        self:SaveSettings(true)
-        needsSave = false
-        btnUtils.Output("\atUpgraded to \amv3\at!")
+        if needsSave then
+            -- be nice and make a backup.
+            mq.pickle(mq.configDir .. "/ButtonMaster-v3-" .. os.date("%m-%d-%y-%H-%M-%S") .. ".lua", self.settings)
+            self.settings = newSettings
+            self:SaveSettings(true)
+            needsSave = false
+            btnUtils.Output("\atUpgraded to \amv3\at!")
+        end
     end
 
     -- version 4 same as 5 but moved the version data around
@@ -293,6 +296,7 @@ function BMSettings:ConvertToLatestConfigVersion()
 
         newSettings.Global.Font = nil
         newSettings.Global.ButtonSize = nil
+        newSettings.Global = nil
 
         if needsSave then
             self.settings = newSettings
@@ -351,10 +355,12 @@ function BMSettings:LoadSettings()
     end
 
     -- if we need to upgrade anyway then bail after the load.
-    if self:NeedUpgrade() then return end
+    if self:NeedUpgrade() then return false end
 
     self.settings.Characters[self.CharConfig] = self.settings.Characters[self.CharConfig] or {}
     self.settings.Characters[self.CharConfig].Windows = self.settings.Characters[self.CharConfig].Windows or {}
+
+    return true
 end
 
 return BMSettings
