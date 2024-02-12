@@ -610,7 +610,7 @@ function BMHotbarClass:RenderImportButtonPopup()
 
         -- save button
         if self.validDecode and self.decodedObject then
-            if ImGui.Button("Import " .. self.decodedObject.Type) then
+            if ImGui.Button("Import " .. (self.decodedObject.Type or "Failed")) then
                 if self.decodedObject.Type == "Button" then
                     BMSettings:ImportButtonAndSave(self.decodedObject.Button, true)
                 elseif self.decodedObject.Type == "Set" then
