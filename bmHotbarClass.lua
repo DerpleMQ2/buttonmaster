@@ -117,21 +117,28 @@ function BMHotbarClass:RenderTabs()
 
     if BMSettings:GetCharacterWindow(self.id).CompactMode then
         local start_x, start_y = ImGui.GetCursorPos()
-        if ImGui.Button(lockedIcon, WINDOW_SETTINGS_ICON_SIZE, WINDOW_SETTINGS_ICON_SIZE) then
+
+        local iconPadding = 2
+        local settingsIconSize = math.ceil(((BMSettings:GetCharacterWindow(self.id).ButtonSize or 6) * 10) / 2) - iconPadding
+        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 0, iconPadding)
+        ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, 0, 0)
+
+        if ImGui.Button(lockedIcon, settingsIconSize, settingsIconSize) then
             --ImGuiWindowFlags.NoMove
             BMSettings:GetCharacterWindow(self.id).Locked = not BMSettings:GetCharacterWindow(self.id).Locked
             BMSettings:SaveSettings(true)
         end
 
-        local style = ImGui.GetStyle()
-        ImGui.SetCursorPosY(ImGui.GetCursorPosY() + (style.ItemSpacing.y / 2))
+        ImGui.SetCursorPosY(ImGui.GetCursorPosY() + (iconPadding))
+        ImGui.Button(Icons.MD_SETTINGS, settingsIconSize, settingsIconSize)
+        ImGui.PopStyleVar(2)
 
-        ImGui.Button(Icons.MD_SETTINGS, WINDOW_SETTINGS_ICON_SIZE, WINDOW_SETTINGS_ICON_SIZE)
         ImGui.SameLine()
         self:RenderTabContextMenu()
         self:RenderCreateTab()
 
-        ImGui.SetCursorPos(ImVec2(start_x + WINDOW_SETTINGS_ICON_SIZE + (style.ItemSpacing.x), start_y))
+        local style = ImGui.GetStyle()
+        ImGui.SetCursorPos(ImVec2(start_x + settingsIconSize + (style.ItemSpacing.x), start_y))
 
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, 0, 0)
         ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, 0, 0)
