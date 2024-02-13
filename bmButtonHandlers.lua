@@ -253,6 +253,12 @@ function BMButtonHandlers.Render(Button, size, renderLabel, fontScale)
     return clicked
 end
 
+function BMButtonHandlers.FireTimer(Button)
+    if Button.TimerType == "Seconds Timer" then
+        Button.CooldownTimer = os.clock() + Button.Cooldown
+    end
+end
+
 ---@param Button table # BMButtonConfig
 function BMButtonHandlers.Exec(Button)
     if Button.Cmd then
@@ -266,9 +272,6 @@ function BMButtonHandlers.Exec(Button)
                     else
                         btnUtils.Output('\arInvalid command on Line %d : \ax%s', i, c)
                     end
-                    if Button.TimerType == "Seconds Timer" then
-                        Button.CooldownTimer = os.clock() + Button.Cooldown
-                    end
                 else
                     btnUtils.Debug("Ignored: %s", c)
                 end
@@ -276,6 +279,7 @@ function BMButtonHandlers.Exec(Button)
         else
             btnUtils.EvaluateLua(Button.Cmd)
         end
+        BMButtonHandlers.FireTimer(Button)
     end
 end
 
