@@ -70,7 +70,22 @@ function BMHotbarClass.new(id, createFresh)
     return newBMHotbar
 end
 
+function BMHotbarClass:SetVisible(bVisible)
+    BMSettings:GetCharacterWindow(self.id).Visible = bVisible
+    BMSettings:SaveSettings(true)
+end
+
+function BMHotbarClass:ToggleVisible()
+    BMSettings:GetCharacterWindow(self.id).Visible = not BMSettings:GetCharacterWindow(self.id).Visible
+    BMSettings:SaveSettings(true)
+end
+
+function BMHotbarClass:IsVisible()
+    return BMSettings:GetCharacterWindow(self.id).Visible
+end
+
 function BMHotbarClass:RenderHotbar(flags)
+    if not self:IsVisible() then return end
     ImGui.PushID("##MainWindow_" .. tostring(self.id))
     self.openGUI, self.shouldDrawGUI = ImGui.Begin(string.format('Button Master - %d', self.id), self.openGUI, flags)
     self.lastWindowX, self.lastWindowY = ImGui.GetWindowPos()
@@ -109,6 +124,11 @@ function BMHotbarClass:RenderHotbar(flags)
     end
     ImGui.End()
     ImGui.PopID()
+
+    if self.openGUI ~= self:IsVisible() then
+        self:SetVisible(self.openGUI)
+        self.openGUI = true
+    end
 end
 
 function BMHotbarClass:RenderTabs()
@@ -390,6 +410,15 @@ function BMHotbarClass:RenderTabContextMenu()
 
         if ImGui.MenuItem("Create New Hotbar") then
             table.insert(BMHotbars, BMHotbarClass.new(BMSettings:GetNextWindowId(), true))
+        end
+
+        if ImGui.BeginMenu("Show/Hide Hotbar") then
+            for hbIdx, hotbarClass in ipairs(BMHotbars) do
+                if ImGui.MenuItem(string.format("Button Master - %d", hbIdx), nil, hotbarClass:IsVisible()) then
+                    hotbarClass:ToggleVisible()
+                end
+            end
+            ImGui.EndMenu()
         end
 
         if ImGui.MenuItem("Replicate Size/Pos") then
