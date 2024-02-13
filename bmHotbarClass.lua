@@ -72,11 +72,13 @@ end
 
 function BMHotbarClass:SetVisible(bVisible)
     BMSettings:GetCharacterWindow(self.id).Visible = bVisible
+    self.openGUI = bVisible
     BMSettings:SaveSettings(true)
 end
 
 function BMHotbarClass:ToggleVisible()
     BMSettings:GetCharacterWindow(self.id).Visible = not BMSettings:GetCharacterWindow(self.id).Visible
+    self.openGUI = BMSettings:GetCharacterWindow(self.id).Visible
     BMSettings:SaveSettings(true)
 end
 
