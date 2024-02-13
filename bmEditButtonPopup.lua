@@ -243,8 +243,10 @@ function BMButtonEditor:RenderButtonEditUI(renderButton, enableShare, enableEdit
     local yPos = ImGui.GetCursorPosY()
     local footerHeight = 35
     local editHeight = ImGui.GetWindowHeight() - yPos - footerHeight
+    ImGui.PushFont(ImGui.ConsoleFont)
     renderButton.Cmd, textChanged = ImGui.InputTextMultiline("##_Cmd_Edit", renderButton.Cmd or "",
         ImVec2(ImGui.GetWindowWidth() * 0.98, editHeight), ImGuiInputTextFlags.AllowTabInput)
+    ImGui.PopFont()
     self.editButtonUIChanged = self.editButtonUIChanged or textChanged
 end
 
