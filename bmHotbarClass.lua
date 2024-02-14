@@ -423,7 +423,7 @@ function BMHotbarClass:RenderTabContextMenu()
             ImGui.EndMenu()
         end
 
-        if ImGui.MenuItem("Replicate Size/Pos") then
+        --[[if ImGui.MenuItem("Replicate Size/Pos") then
             local x, y = ImGui.GetWindowPos()
             ButtonActors.send({
                 from = mq.TLO.Me.DisplayName(),
@@ -437,7 +437,7 @@ function BMHotbarClass:RenderTabContextMenu()
                 hideTitleBar = BMSettings:GetCharacterWindow(self.id).HideTitleBar,
                 compactMode = BMSettings:GetCharacterWindow(self.id).CompactMode,
             })
-        end
+        end]]
 
         ImGui.Separator()
 
