@@ -89,7 +89,7 @@ end
 function BMHotbarClass:RenderHotbar(flags)
     if not self:IsVisible() then return end
     ImGui.PushID("##MainWindow_" .. tostring(self.id))
-    self.openGUI, self.shouldDrawGUI = ImGui.Begin(string.format('Button Master - %d##%s', self.id, BMSettings.CharConfig), self.openGUI, flags)
+    self.openGUI, self.shouldDrawGUI = ImGui.Begin(string.format('Button Master - %d', self.id), self.openGUI, flags)
     self.lastWindowX, self.lastWindowY = ImGui.GetWindowPos()
 
     local theme = BMSettings:GetSettings().Themes and BMSettings:GetSettings().Themes[self.id] or nil
