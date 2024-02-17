@@ -28,8 +28,11 @@ local openGUI        = true
 local reloadSettings = false
 
 -- binds
-local function BindBtn()
-    openGUI = not openGUI
+local function BindBtn(num)
+    if not num then num = 1 else num = tonumber(num) end
+    if BMHotbars[num] then
+        BMHotbars[num]:ToggleVisible()
+    end
 end
 
 local function ButtonGUI()
