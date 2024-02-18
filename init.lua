@@ -9,7 +9,7 @@
     Thanks to the testers:
         Shwebro, Kevbro, RYN
 --]]
-
+local version        = "2.2"
 local mq             = require('mq')
 
 ButtonActors         = require 'actors'
@@ -68,7 +68,7 @@ local function Setup()
     end
 
     BMEditPopup:CloseEditPopup()
-    btnUtils.Output('\ayButton Master v2 by (\a-to_O\ay) Derple, Special.Ed (\a-to_O\ay) - \atLoaded!')
+    btnUtils.Output('\ayButton Master v%s by (\a-to_O\ay) Derple, Special.Ed (\a-to_O\ay) - \atLoaded!', version)
 end
 
 local args = ... or ""
