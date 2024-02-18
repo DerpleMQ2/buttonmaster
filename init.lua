@@ -9,6 +9,7 @@
     Thanks to the testers:
         Shwebro, Kevbro, RYN
 --]]
+
 local version        = "2.2"
 local mq             = require('mq')
 
