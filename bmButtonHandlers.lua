@@ -62,7 +62,7 @@ function BMButtonHandlers.GetButtonCooldown(Button)
             success, result = btnUtils.EvaluateLua(Button.ToggleCheck)
             if not success then
                 btnUtils.Output("Failed to run ToggleCheck for Button(%s): %s", Button.Label, Button.ToggleCheck)
-                btnUtils.btnUtils.Output("RunEnv was:\n%s", Button.ToggleCheck)
+                btnUtils.Output("RunEnv was:\n%s", Button.ToggleCheck)
                 toggleLocked = false
             else
                 toggleLocked = type(result) == 'boolean' and result or false
