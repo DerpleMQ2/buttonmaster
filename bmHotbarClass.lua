@@ -2,20 +2,6 @@ local mq                            = require('mq')
 local btnUtils                      = require('lib.buttonUtils')
 local BMButtonHandlers              = require('bmButtonHandlers')
 
--- Icon Rendering
-local animItems                     = mq.FindTextureAnimation("A_DragItem")
-local animBox                       = mq.FindTextureAnimation("A_RecessedBox")
-local animSpellGemIcons             = mq.FindTextureAnimation('A_SpellGems')
-local animSpellGemHolder            = mq.FindTextureAnimation('A_SpellGemHolder')
-local animSpellGemBG                = mq.FindTextureAnimation('A_SpellGemBackground')
-local animSquareButton              = mq.FindTextureAnimation('A_SquareBtnNormal')
-
--- Constants
-local ICON_WIDTH                    = 40
-local ICON_HEIGHT                   = 40
-local COUNT_X_OFFSET                = 39
-local COUNT_Y_OFFSET                = 23
-local EQ_ICON_OFFSET                = 500
 local WINDOW_SETTINGS_ICON_SIZE     = 22
 
 local editTabPopup                  = "edit_tab_popup"
