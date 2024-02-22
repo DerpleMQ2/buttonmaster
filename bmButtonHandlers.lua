@@ -163,7 +163,8 @@ function BMButtonHandlers.RenderButtonRect(Button, cursorScreenPos, size, alpha)
     local draw_list = ImGui.GetWindowDrawList()
     local buttonStyle = ImGui.GetStyleColorVec4(ImGuiCol.Button)
     local Colors = btnUtils.split(Button.ButtonColorRGB, ",")
-    local buttonBGCol = IM_COL32(tonumber(Colors[1]) or (buttonStyle.x * 255), tonumber(Colors[2]) or (buttonStyle.y * 255), tonumber(Colors[3]) or (buttonStyle.z * 255), alpha)
+    local buttonBGCol = IM_COL32(tonumber(Colors[1]) or (buttonStyle.x * 255), tonumber(Colors[2]) or (buttonStyle.y * 255), tonumber(Colors[3]) or (buttonStyle.z * 255),
+        #Colors == 0 and (buttonStyle.w * 255) or alpha)
 
     draw_list:AddRectFilled(cursorScreenPos, ImVec2(cursorScreenPos.x + size, cursorScreenPos.y + size), buttonBGCol)
 end
