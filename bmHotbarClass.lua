@@ -116,7 +116,6 @@ function BMHotbarClass:RenderHotbar(flags)
 
         self:RenderTabs()
         self:RenderImportButtonPopup()
-        self:DisplayItemOnCursor()
     end
     if themeColorPop > 0 then
         ImGui.PopStyleColor(themeColorPop)
@@ -698,56 +697,6 @@ function BMHotbarClass:UpdatePosition(width, height, x, y, hideTitleBar, compact
     BMSettings:GetCharacterWindow(self.id).HideTitleBar = hideTitleBar
     BMSettings:GetCharacterWindow(self.id).CompactMode  = compactMode
     BMSettings:SaveSettings(true)
-end
-
--- [[ UI ]]
-function BMHotbarClass:DisplayItemOnCursor()
-    if mq.TLO.CursorAttachment.Type() then
-        local draw_list = ImGui.GetForegroundDrawList()
-        local window_x, window_y = ImGui.GetWindowPos()
-        local window_w, window_h = ImGui.GetWindowSize()
-        local mouse_x, mouse_y = ImGui.GetMousePos()
-
-        if mouse_x < window_x or mouse_x > window_x + window_w then return end
-        if mouse_y < window_y or mouse_y > window_y + window_h then return end
-
-        local icon_x = mouse_x + 10
-        local icon_y = mouse_y + 10
-        local stack_x = icon_x + COUNT_X_OFFSET + 10
-        local stack_y = (icon_y + COUNT_Y_OFFSET)
-
-        local attachType = mq.TLO.CursorAttachment.Type():lower()
-        if attachType == "item" or attachType == "item_link" then
-            local cursor_item = mq.TLO.CursorAttachment.Item
-            animItems:SetTextureCell(cursor_item.Icon() - EQ_ICON_OFFSET)
-            if attachType == "item_link" then
-                draw_list:AddTextureAnimation(animBox, ImVec2(icon_x, icon_y), ImVec2(ICON_WIDTH, ICON_HEIGHT))
-            end
-            draw_list:AddTextureAnimation(animItems, ImVec2(icon_x, icon_y), ImVec2(ICON_WIDTH, ICON_HEIGHT))
-            if cursor_item.Stackable() then
-                local text_size = ImGui.CalcTextSize(tostring(cursor_item.Stack()))
-                draw_list:AddTextureAnimation(animBox, ImVec2(stack_x, stack_y),
-                    ImVec2(text_size, ImGui.GetTextLineHeight()))
-                draw_list:AddText(ImVec2(stack_x, stack_y), IM_COL32(255, 255, 255, 255), tostring(cursor_item.Stack()))
-            end
-        elseif attachType == "spell_gem" then
-            local gem_offset_x = 7
-            local gem_offset_y = 5
-            local cursor_item = mq.TLO.CursorAttachment.Spell
-            animSpellGemIcons:SetTextureCell(cursor_item.SpellIcon())
-            draw_list:AddTextureAnimation(animSpellGemHolder, ImVec2(icon_x, icon_y), ImVec2(39, 32))
-            draw_list:AddTextureAnimation(animSpellGemBG, ImVec2(icon_x, icon_y), ImVec2(39, 32))
-            draw_list:AddTextureAnimation(animSpellGemIcons, ImVec2(icon_x + gem_offset_x, icon_y + gem_offset_y),
-                ImVec2(24, 24))
-        elseif attachType == "skill" or attachType == "social" then
-            local buttonLabel = mq.TLO.CursorAttachment.ButtonText()
-            local label_x, label_y = ImGui.CalcTextSize(buttonLabel)
-            local midX = math.max((ICON_WIDTH - label_x) / 2, 0)
-            local midY = (ICON_WIDTH - label_y) / 2
-            draw_list:AddTextureAnimation(animSquareButton, ImVec2(icon_x, icon_y), ImVec2(ICON_WIDTH, ICON_WIDTH))
-            draw_list:AddText(nil, 13, ImVec2(icon_x + midX, icon_y + midY), IM_COL32(255, 255, 255, 255), buttonLabel)
-        end
-    end
 end
 
 return BMHotbarClass

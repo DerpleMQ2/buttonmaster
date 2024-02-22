@@ -158,12 +158,12 @@ end
 ---@param Button table # BMButtonConfig
 ---@param cursorScreenPos ImVec2 # cursor position on screen
 ---@param size number # button size
+---@param alpha number # button alpha color
 function BMButtonHandlers.RenderButtonRect(Button, cursorScreenPos, size, alpha)
     local draw_list = ImGui.GetWindowDrawList()
     local buttonStyle = ImGui.GetStyleColorVec4(ImGuiCol.Button)
     local Colors = btnUtils.split(Button.ButtonColorRGB, ",")
-    local buttonBGCol = IM_COL32(tonumber(Colors[1]) or (buttonStyle.x * 255), tonumber(Colors[2]) or (buttonStyle.y * 255), tonumber(Colors[3]) or (buttonStyle.z * 255),
-        buttonStyle.w * alpha)
+    local buttonBGCol = IM_COL32(tonumber(Colors[1]) or (buttonStyle.x * 255), tonumber(Colors[2]) or (buttonStyle.y * 255), tonumber(Colors[3]) or (buttonStyle.z * 255), alpha)
 
     draw_list:AddRectFilled(cursorScreenPos, ImVec2(cursorScreenPos.x + size, cursorScreenPos.y + size), buttonBGCol)
 end
@@ -201,7 +201,6 @@ function BMButtonHandlers.RenderButtonLabel(Button, cursorScreenPos, size, label
     local label_x, label_y = ImGui.CalcTextSize(label)
     local midX = math.max((size - label_x) / 2, 0)
     local midY = (size - label_y) / 2
-    --    ImGui.SetCursorPos(cursor_x + midX, cursor_y + midY)
 
     draw_list:PushClipRect(cursorScreenPos, ImVec2(cursorScreenPos.x + size, cursorScreenPos.y + size), true)
     draw_list:AddText(ImVec2(cursorScreenPos.x + midX, cursorScreenPos.y + midY), buttonLabelCol, label)
