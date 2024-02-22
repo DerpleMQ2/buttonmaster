@@ -10,7 +10,7 @@
         Shwebro, Kevbro, RYN
 --]]
 
-local version        = "2.2"
+local version        = "2.3"
 local mq             = require('mq')
 
 ButtonActors         = require 'actors'
