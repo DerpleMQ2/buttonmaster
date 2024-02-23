@@ -516,6 +516,7 @@ end
 
 ---@param Set string
 function BMHotbarClass:RenderButtons(Set)
+    ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, ImVec2(4, 4))
     if ImGui.GetWindowWidth() ~= self.lastWindowWidth or ImGui.GetWindowHeight() ~= self.lastWindowHeight or self.buttonSizeDirty then
         self:RecalculateVisibleButtons(Set)
     end
@@ -566,6 +567,7 @@ function BMHotbarClass:RenderButtons(Set)
         -- button grid
         if ButtonIndex % self.cachedCols ~= 0 then ImGui.SameLine() end
     end
+    ImGui.PopStyleVar(1)
 end
 
 function BMHotbarClass:RecalculateVisibleButtons(Set)
