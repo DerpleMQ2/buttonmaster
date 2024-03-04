@@ -150,7 +150,9 @@ function BMHotbarClass:RenderTabs()
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, 0, 0)
         ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, 0, 0)
         ImGui.BeginChild("##buttons_child", nil, nil, bit32.bor(ImGuiWindowFlags.AlwaysAutoResize))
-        self:RenderButtons(BMSettings:GetCharacterWindowSets(self.id)[1])
+        if BMSettings:GetCharacterWindowSets(self.id)[1] ~= nil then
+            self:RenderButtons(BMSettings:GetCharacterWindowSets(self.id)[1])
+        end
         ImGui.EndChild()
         ImGui.PopStyleVar(2)
     else
@@ -166,7 +168,7 @@ function BMHotbarClass:RenderTabs()
         self:RenderTabContextMenu()
         self:RenderCreateTab()
 
-        if ImGui.BeginTabBar("Tabs") then
+        if ImGui.BeginTabBar("Tabs", ImGuiTabBarFlags.Reorderable) then
             if #BMSettings:GetCharacterWindowSets(self.id) > 0 then
                 for i, set in ipairs(BMSettings:GetCharacterWindowSets(self.id)) do
                     if ImGui.BeginTabItem(set) then
@@ -447,7 +449,7 @@ function BMHotbarClass:RenderContextMenu(Set, Index, buttonID)
 
     local unassigned = {}
     local keys = {}
-    for _, v in pairs(BMSettings:GetSettings().Sets[Set]) do keys[v] = true end
+    for _, v in pairs(BMSettings:GetSettings().Sets[Set] or {}) do keys[v] = true end
     for k, v in pairs(BMSettings:GetSettings().Buttons) do
         if keys[k] == nil then
             unassigned[k] = v
