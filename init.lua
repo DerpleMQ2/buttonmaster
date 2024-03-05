@@ -30,7 +30,7 @@ local reloadSettings = false
 
 -- binds
 local function BindBtn(num)
-    if not num then num = 1 else num = tonumber(num) end
+    if not num then num = 1 else num = (tonumber(num) or 1) end
     if BMHotbars[num] then
         BMHotbars[num]:ToggleVisible()
     end
