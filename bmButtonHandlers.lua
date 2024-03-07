@@ -209,7 +209,8 @@ function BMButtonHandlers.RenderButtonLabel(Button, cursorScreenPos, size, label
 end
 
 ---@param Button table # BMButtonConfig
-function BMButtonHandlers.ResolveButtonLabel(Button)
+---@param leaveSpaces boolean? # leave spaces or replace with new line.
+function BMButtonHandlers.ResolveButtonLabel(Button, leaveSpaces)
     local success = true
     local evaluatedLabel = Button.Label
 
@@ -220,7 +221,8 @@ function BMButtonHandlers.ResolveButtonLabel(Button)
         end
     end
     evaluatedLabel = tostring(evaluatedLabel)
-    return evaluatedLabel:gsub(" ", "\n")
+
+    return leaveSpaces and evaluatedLabel or evaluatedLabel:gsub(" ", "\n")
 end
 
 ---@param Button table # BMButtonConfig
