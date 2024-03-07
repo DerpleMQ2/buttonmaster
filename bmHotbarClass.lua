@@ -474,15 +474,15 @@ function BMHotbarClass:RenderContextMenu(Set, Index, buttonID)
 
                 -- Sort the keys based on the Label field
                 table.sort(sortedKeys, function(a, b)
-                    local labelA = unassigned[a] and unassigned[a].Label
-                    local labelB = unassigned[b] and unassigned[b].Label
+                    local labelA = unassigned[a] and BMButtonHandlers.ResolveButtonLabel(unassigned[a])
+                    local labelB = unassigned[b] and BMButtonHandlers.ResolveButtonLabel(unassigned[b])
                     return labelA < labelB
                 end)
 
                 for _, key in ipairs(sortedKeys) do
                     local value = unassigned[key]
                     if value ~= nil then
-                        if ImGui.MenuItem(tostring(value.Label)) then
+                        if ImGui.MenuItem(BMButtonHandlers.ResolveButtonLabel(value)) then
                             BMSettings:GetSettings().Sets[Set][Index] = key
                             BMSettings:SaveSettings(true)
                             break
