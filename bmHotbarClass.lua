@@ -20,6 +20,7 @@ BMHotbarClass.buttonSizeDirty       = false
 BMHotbarClass.visibleButtonCount    = 0
 BMHotbarClass.cachedCols            = 0
 BMHotbarClass.cachedRows            = 0
+BMHotbarClass.highestRenderTime     = 0
 
 BMHotbarClass.importObjectPopupOpen = false
 
@@ -81,11 +82,15 @@ function BMHotbarClass:RenderHotbar(flags)
     self.openGUI, self.shouldDrawGUI = ImGui.Begin(string.format('Button Master - %d', self.id), self.openGUI, flags)
     self.lastWindowX, self.lastWindowY = ImGui.GetWindowPos()
 
+
     local theme = BMSettings:GetSettings().Themes and BMSettings:GetSettings().Themes[self.id] or nil
     local themeColorPop = 0
     local themeStylePop = 0
 
     if self.openGUI and self.shouldDrawGUI then
+        local startTimeMS = os.clock() * 1000
+        local cursorScreenPos = ImGui.GetCursorScreenPosVec()
+
         if theme ~= nil then
             for _, t in pairs(theme) do
                 if t.color then
@@ -105,6 +110,17 @@ function BMHotbarClass:RenderHotbar(flags)
 
         self:RenderTabs()
         self:RenderImportButtonPopup()
+
+        local endTimeMS = os.clock() * 1000
+
+        local renderTimeMS = math.ceil(endTimeMS - startTimeMS)
+
+        if btnUtils.enableDebug then
+            if renderTimeMS > self.highestRenderTime then self.highestRenderTime = renderTimeMS end
+            ImGui.SetWindowFontScale(0.8)
+            self:RenderDebugText(cursorScreenPos, tostring(self.highestRenderTime))
+            ImGui.SetWindowFontScale(1)
+        end
     end
     if themeColorPop > 0 then
         ImGui.PopStyleColor(themeColorPop)
@@ -112,6 +128,7 @@ function BMHotbarClass:RenderHotbar(flags)
     if themeStylePop > 0 then
         ImGui.PopStyleVar(themeStylePop)
     end
+
     ImGui.End()
     ImGui.PopID()
 
@@ -227,6 +244,15 @@ function BMHotbarClass:RenderTabs()
         end
         ImGui.EndTabBar()
     end
+end
+
+---@param cursorScreenPos ImVec2 # cursor position on screen
+---@param text string
+function BMHotbarClass:RenderDebugText(cursorScreenPos, text)
+    local buttonLabelCol = IM_COL32(255, 0, 0, 255)
+    local draw_list = ImGui.GetWindowDrawList()
+
+    draw_list:AddText(ImVec2(cursorScreenPos.x, cursorScreenPos.y), buttonLabelCol, text)
 end
 
 function BMHotbarClass:RenderTabContextMenu()
@@ -482,17 +508,17 @@ end
 
 function BMHotbarClass:RenderContextMenu(Set, Index, buttonID)
     local button = BMSettings:GetButtonBySetIndex(Set, Index)
-
-    local unassigned = {}
-    local keys = {}
-    for _, v in pairs(BMSettings:GetSettings().Sets[Set] or {}) do keys[v] = true end
-    for k, v in pairs(BMSettings:GetSettings().Buttons) do
-        if keys[k] == nil then
-            unassigned[k] = v
-        end
-    end
+    local btnSize = (BMSettings:GetCharacterWindow(self.id).ButtonSize or 6) * 10
 
     if ImGui.BeginPopupContextItem(buttonID) then
+        local unassigned = {}
+        local keys = {}
+        for _, v in pairs(BMSettings:GetSettings().Sets[Set] or {}) do keys[v] = true end
+        for k, v in pairs(BMSettings:GetSettings().Buttons) do
+            if keys[k] == nil then
+                unassigned[k] = v
+            end
+        end
         --editPopupName = "edit_button_popup|" .. Index
         -- only list hotkeys that aren't already assigned to the button set
         if btnUtils.getTableSize(unassigned) > 0 then
@@ -510,15 +536,15 @@ function BMHotbarClass:RenderContextMenu(Set, Index, buttonID)
 
                 -- Sort the keys based on the Label field
                 table.sort(sortedKeys, function(a, b)
-                    local labelA = unassigned[a] and BMButtonHandlers.ResolveButtonLabel(unassigned[a], true)
-                    local labelB = unassigned[b] and BMButtonHandlers.ResolveButtonLabel(unassigned[b], true)
+                    local labelA = unassigned[a] and BMButtonHandlers.ResolveButtonLabel(unassigned[a], btnSize, true)
+                    local labelB = unassigned[b] and BMButtonHandlers.ResolveButtonLabel(unassigned[b], btnSize, true)
                     return labelA < labelB
                 end)
 
                 for _, key in ipairs(sortedKeys) do
                     local value = unassigned[key]
                     if value ~= nil then
-                        if ImGui.MenuItem(BMButtonHandlers.ResolveButtonLabel(value, true)) then
+                        if ImGui.MenuItem(BMButtonHandlers.ResolveButtonLabel(value, btnSize, true)) then
                             BMSettings:GetSettings().Sets[Set][Index] = key
                             BMSettings:SaveSettings(true)
                             break
@@ -739,6 +765,8 @@ function BMHotbarClass:GiveTime()
     if now - self.lastFrameTime < fps then return end
     self.lastFrameTime = now
 
+    local btnSize = (BMSettings:GetCharacterWindow(self.id).ButtonSize or 6) * 10
+
     for i, set in ipairs(BMSettings:GetCharacterWindowSets(self.id)) do
         if self.currentSelectedSet == i then
             btnUtils.Debug("Caching Visibile Buttons for Set: %s / %d", set, i)
@@ -747,7 +775,7 @@ function BMHotbarClass:GiveTime()
             for ButtonIndex = 1, renderButtonCount do
                 local button = BMSettings:GetButtonBySetIndex(set, ButtonIndex)
 
-                BMButtonHandlers.EvaluateAndCache(button)
+                BMButtonHandlers.EvaluateAndCache(button, btnSize)
             end
         end
     end

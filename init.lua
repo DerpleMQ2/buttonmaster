@@ -88,7 +88,9 @@ local function GiveTime()
 
         if #BMHotbars > 0 then
             for _, bmHB in ipairs(BMHotbars) do
-                bmHB:GiveTime()
+                if bmHB:IsVisible() then
+                    bmHB:GiveTime()
+                end
             end
         end
     end

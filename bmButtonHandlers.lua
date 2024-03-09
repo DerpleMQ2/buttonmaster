@@ -205,18 +205,25 @@ function BMButtonHandlers.RenderButtonLabel(Button, cursorScreenPos, size, label
     local buttonLabelCol = IM_COL32(tonumber(Colors[1]) or 255, tonumber(Colors[2]) or 255, tonumber(Colors[3]) or 255, 255)
     local draw_list = ImGui.GetWindowDrawList()
 
-    local label_x, label_y = ImGui.CalcTextSize(label)
-    local midX = math.max((size - label_x) / 2, 0)
-    local midY = (size - label_y) / 2
-
     draw_list:PushClipRect(cursorScreenPos, ImVec2(cursorScreenPos.x + size, cursorScreenPos.y + size), true)
-    draw_list:AddText(ImVec2(cursorScreenPos.x + midX, cursorScreenPos.y + midY), buttonLabelCol, label)
+    draw_list:AddText(ImVec2(cursorScreenPos.x + (Button.labelMidX or 0), cursorScreenPos.y + (Button.labelMidY or 0)), buttonLabelCol, label)
     draw_list:PopClipRect()
 end
 
 ---@param Button table # BMButtonConfig
+---@param cursorScreenPos ImVec2 # cursor position on screen
+---@param text string
+function BMButtonHandlers.RenderButtonDebugText(Button, cursorScreenPos, text)
+    local buttonLabelCol = IM_COL32(255, 0, 0, 255)
+    local draw_list = ImGui.GetWindowDrawList()
+
+    draw_list:AddText(ImVec2(cursorScreenPos.x, cursorScreenPos.y), buttonLabelCol, text)
+end
+
+---@param Button table # BMButtonConfig
+---@param size number #button size
 ---@param leaveSpaces boolean? # leave spaces or replace with new line.
-function BMButtonHandlers.ResolveButtonLabel(Button, leaveSpaces, cacheUpdate)
+function BMButtonHandlers.ResolveButtonLabel(Button, size, leaveSpaces, cacheUpdate)
     if not cacheUpdate and Button.CachedLabel ~= nil then return Button.CachedLabel end
     local success = true
     local evaluatedLabel = Button.Label
@@ -230,6 +237,11 @@ function BMButtonHandlers.ResolveButtonLabel(Button, leaveSpaces, cacheUpdate)
     evaluatedLabel = tostring(evaluatedLabel)
 
     Button.CachedLabel = leaveSpaces and evaluatedLabel or evaluatedLabel:gsub(" ", "\n")
+
+    local label_x, label_y = ImGui.CalcTextSize(Button.CachedLabel)
+    Button.labelMidX = math.max((size - label_x) / 2, 0)
+    Button.labelMidY = (size - label_y) / 2
+
     return Button.CachedLabel
 end
 
@@ -239,9 +251,9 @@ end
 ---@param fontScale number # Font scale for text
 ---@return boolean # clicked
 function BMButtonHandlers.Render(Button, size, renderLabel, fontScale)
-    local evaluatedLabel = renderLabel and BMButtonHandlers.ResolveButtonLabel(Button) or ""
+    local evaluatedLabel = renderLabel and BMButtonHandlers.ResolveButtonLabel(Button, size) or ""
     local clicked = false
-
+    local startTimeMS = os.clock() * 1000
     local cursorScreenPos = ImGui.GetCursorScreenPosVec()
 
     BMButtonHandlers.RenderButtonIcon(Button, cursorScreenPos, size)
@@ -260,6 +272,17 @@ function BMButtonHandlers.Render(Button, size, renderLabel, fontScale)
         ImGui.SetWindowFontScale(1)
     end
 
+    local endTimeMS = os.clock() * 1000
+
+    local renderTimeMS = math.ceil(endTimeMS - startTimeMS)
+
+    if btnUtils.enableDebug then
+        if Button.highestRenderTime == nil or renderTimeMS > Button.highestRenderTime then Button.highestRenderTime = renderTimeMS end
+        ImGui.SetWindowFontScale(0.8)
+        BMButtonHandlers.RenderButtonDebugText(Button, cursorScreenPos, tostring(Button.highestRenderTime))
+        ImGui.SetWindowFontScale(1)
+    end
+
     return clicked
 end
 
@@ -269,8 +292,8 @@ function BMButtonHandlers.FireTimer(Button)
     end
 end
 
-function BMButtonHandlers.EvaluateAndCache(Button)
-    BMButtonHandlers.ResolveButtonLabel(Button, false, true)
+function BMButtonHandlers.EvaluateAndCache(Button, size)
+    BMButtonHandlers.ResolveButtonLabel(Button, size, false, true)
     BMButtonHandlers.GetButtonCooldown(Button, true)
 end
 
