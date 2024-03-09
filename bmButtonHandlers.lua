@@ -205,6 +205,9 @@ function BMButtonHandlers.RenderButtonLabel(Button, cursorScreenPos, size, label
     local buttonLabelCol = IM_COL32(tonumber(Colors[1]) or 255, tonumber(Colors[2]) or 255, tonumber(Colors[3]) or 255, 255)
     local draw_list = ImGui.GetWindowDrawList()
 
+    if btnUtils.enableDebug then
+        BMButtonHandlers.CalcButtonTextPos(Button, size)
+    end
     draw_list:PushClipRect(cursorScreenPos, ImVec2(cursorScreenPos.x + size, cursorScreenPos.y + size), true)
     draw_list:AddText(ImVec2(cursorScreenPos.x + (Button.labelMidX or 0), cursorScreenPos.y + (Button.labelMidY or 0)), buttonLabelCol, label)
     draw_list:PopClipRect()
@@ -238,11 +241,14 @@ function BMButtonHandlers.ResolveButtonLabel(Button, size, leaveSpaces, cacheUpd
 
     Button.CachedLabel = leaveSpaces and evaluatedLabel or evaluatedLabel:gsub(" ", "\n")
 
-    local label_x, label_y = ImGui.CalcTextSize(Button.CachedLabel)
-    Button.labelMidX = math.max((size - label_x) / 2, 0)
-    Button.labelMidY = (size - label_y) / 2
+    BMButtonHandlers.CalcButtonTextPos(Button, size)
 
     return Button.CachedLabel
+end
+
+function BMButtonHandlers.CalcButtonTextPos(Button, size)
+    local label_x, label_y = ImGui.CalcTextSize(Button.CachedLabel)
+    Button.labelMidX, Button.labelMidY = math.max((size - label_x) / 2, 0), (size - label_y) / 2
 end
 
 ---@param Button table # BMButtonConfig

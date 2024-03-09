@@ -257,6 +257,7 @@ end
 
 function BMHotbarClass:RenderTabContextMenu()
     local openPopup = false
+    local btnSize = (BMSettings:GetCharacterWindow(self.id).ButtonSize or 6) * 10
 
     local unassigned = {}
     local charLoadedSets = {}
@@ -315,11 +316,11 @@ function BMHotbarClass:RenderTabContextMenu()
 
         if ImGui.BeginMenu("Delete Hotkey") then
             local sortedButtons = {}
-            for k, v in pairs(BMSettings:GetSettings().Buttons) do table.insert(sortedButtons, { Label = v.Label, id = k, }) end
+            for k, v in pairs(BMSettings:GetSettings().Buttons) do table.insert(sortedButtons, { Label = BMButtonHandlers.ResolveButtonLabel(v, btnSize, true), id = k, }) end
             table.sort(sortedButtons, function(a, b) return a.Label < b.Label end)
 
             for _, buttonData in pairs(sortedButtons) do
-                if ImGui.MenuItem(buttonData.Label) then
+                if ImGui.MenuItem(BMButtonHandlers.ResolveButtonLabel(buttonData, btnSize, true)) then
                     -- clean up any references to this Button.
                     for setNameKey, setButtons in pairs(BMSettings:GetSettings().Sets) do
                         for buttonKey, buttonName in pairs(setButtons) do
