@@ -31,8 +31,14 @@ end
 
 ---@param Button table # BMButtonConfig
 ---@return integer, integer, boolean #CountDown, CooldownTimer, Toggle Locked
-function BMButtonHandlers.GetButtonCooldown(Button)
-    local countDown, coolDowntimer, toggleLocked = 0, 0, false
+function BMButtonHandlers.GetButtonCooldown(Button, cacheUpdate)
+    if not cacheUpdate and Button.CachedCountDown ~= nil and Button.CachedCoolDownTimer ~= nil and Button.CachedToggleLocked ~= nil then
+        return Button.CachedCountDown, Button.CachedCoolDownTimer, Button.CachedToggleLocked
+    end
+
+    Button.CachedCountDown     = 0
+    Button.CachedCoolDownTimer = 0
+    Button.CachedToggleLocked  = false
 
     if Button.TimerType == "Custom Lua" then
         local success
@@ -41,11 +47,11 @@ function BMButtonHandlers.GetButtonCooldown(Button)
         if Button.Timer and Button.Timer:len() > 0 then
             success, result = btnUtils.EvaluateLua(Button.Timer)
             if not success then
-                btnUtils.Output("Failed to run Timer for Button(%s): %s", Button.Label, countDown)
+                btnUtils.Output("Failed to run Timer for Button(%s): %s", Button.Label, Button.Timer)
                 btnUtils.Output("RunEnv was:\n%s", Button.Timer)
-                countDown = 0
+                Button.CachedCountDown = 0
             else
-                countDown = tonumber(result) or 0
+                Button.CachedCountDown = tonumber(result) or 0
             end
         end
         if Button.Cooldown and Button.Cooldown:len() > 0 then
@@ -53,9 +59,9 @@ function BMButtonHandlers.GetButtonCooldown(Button)
             if not success then
                 btnUtils.Output("Failed to run Cooldown for Button(%s): %s", Button.Label, Button.Cooldown)
                 btnUtils.Output("RunEnv was:\n%s", Button.Cooldown)
-                coolDowntimer = 0
+                Button.CachedCoolDownTimer = 0
             else
-                coolDowntimer = tonumber(result) or 0
+                Button.CachedCoolDownTimer = tonumber(result) or 0
             end
         end
         if Button.ToggleCheck and Button.ToggleCheck:len() > 0 then
@@ -63,37 +69,37 @@ function BMButtonHandlers.GetButtonCooldown(Button)
             if not success then
                 btnUtils.Output("Failed to run ToggleCheck for Button(%s): %s", Button.Label, Button.ToggleCheck)
                 btnUtils.Output("RunEnv was:\n%s", Button.ToggleCheck)
-                toggleLocked = false
+                Button.CachedToggleLocked = false
             else
-                toggleLocked = type(result) == 'boolean' and result or false
+                Button.CachedToggleLocked = type(result) == 'boolean' and result or false
             end
         end
     elseif Button.TimerType == "Seconds Timer" then
         if Button.CooldownTimer then
-            countDown = Button.CooldownTimer - os.clock()
-            if countDown <= 0 then
+            Button.CachedCountDown = Button.CooldownTimer - os.clock()
+            if Button.CachedCountDown <= 0 then
                 Button.CooldownTimer = nil
                 return 0, 0, false
             end
-            coolDowntimer = Button.Cooldown
+            Button.CachedCoolDownTimer = Button.Cooldown
         end
     elseif Button.TimerType == "Item" then
-        countDown = mq.TLO.FindItem(Button.Cooldown).TimerReady() or 0
-        coolDowntimer = mq.TLO.FindItem(Button.Cooldown).Clicky.TimerID() or 0
+        Button.CachedCountDown = mq.TLO.FindItem(Button.Cooldown).TimerReady() or 0
+        Button.CachedCoolDownTimer = mq.TLO.FindItem(Button.Cooldown).Clicky.TimerID() or 0
     elseif Button.TimerType == "Spell Gem" then
-        countDown = (mq.TLO.Me.GemTimer(Button.Cooldown)() or 0) / 1000
-        coolDowntimer = mq.TLO.Me.GemTimer(Button.Cooldown).TotalSeconds() or 0
+        Button.CachedCountDown = (mq.TLO.Me.GemTimer(Button.Cooldown)() or 0) / 1000
+        Button.CachedCoolDownTimer = mq.TLO.Me.GemTimer(Button.Cooldown).TotalSeconds() or 0
     elseif Button.TimerType == "AA" then
-        countDown = (mq.TLO.Me.AltAbilityTimer(Button.Cooldown)() or 0) / 1000
-        coolDowntimer = mq.TLO.Me.AltAbility(Button.Cooldown).MyReuseTime() or 0
+        Button.CachedCountDown = (mq.TLO.Me.AltAbilityTimer(Button.Cooldown)() or 0) / 1000
+        Button.CachedCoolDownTimer = mq.TLO.Me.AltAbility(Button.Cooldown).MyReuseTime() or 0
     elseif Button.TimerType == "Ability" then
         if mq.TLO.Me.AbilityTimer and mq.TLO.Me.AbilityTimerTotal then
-            countDown = (mq.TLO.Me.AbilityTimer(Button.Cooldown)() or 0) / 1000
-            coolDowntimer = (mq.TLO.Me.AbilityTimerTotal(Button.Cooldown)() or 0) / 1000
+            Button.CachedCountDown = (mq.TLO.Me.AbilityTimer(Button.Cooldown)() or 0) / 1000
+            Button.CachedCoolDownTimer = (mq.TLO.Me.AbilityTimerTotal(Button.Cooldown)() or 0) / 1000
         end
     end
 
-    return countDown, coolDowntimer, toggleLocked
+    return Button.CachedCountDown, Button.CachedCoolDownTimer, Button.CachedToggleLocked
 end
 
 ---@param Button table # BMButtonConfig
@@ -210,7 +216,8 @@ end
 
 ---@param Button table # BMButtonConfig
 ---@param leaveSpaces boolean? # leave spaces or replace with new line.
-function BMButtonHandlers.ResolveButtonLabel(Button, leaveSpaces)
+function BMButtonHandlers.ResolveButtonLabel(Button, leaveSpaces, cacheUpdate)
+    if not cacheUpdate and Button.CachedLabel ~= nil then return Button.CachedLabel end
     local success = true
     local evaluatedLabel = Button.Label
 
@@ -222,7 +229,8 @@ function BMButtonHandlers.ResolveButtonLabel(Button, leaveSpaces)
     end
     evaluatedLabel = tostring(evaluatedLabel)
 
-    return leaveSpaces and evaluatedLabel or evaluatedLabel:gsub(" ", "\n")
+    Button.CachedLabel = leaveSpaces and evaluatedLabel or evaluatedLabel:gsub(" ", "\n")
+    return Button.CachedLabel
 end
 
 ---@param Button table # BMButtonConfig
@@ -259,6 +267,11 @@ function BMButtonHandlers.FireTimer(Button)
     if Button.TimerType == "Seconds Timer" then
         Button.CooldownTimer = os.clock() + Button.Cooldown
     end
+end
+
+function BMButtonHandlers.EvaluateAndCache(Button)
+    BMButtonHandlers.ResolveButtonLabel(Button, false, true)
+    BMButtonHandlers.GetButtonCooldown(Button, true)
 end
 
 ---@param Button table # BMButtonConfig

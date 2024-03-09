@@ -85,6 +85,12 @@ local function GiveTime()
             reloadSettings = false
             BMSettings:LoadSettings()
         end
+
+        if #BMHotbars > 0 then
+            for _, bmHB in ipairs(BMHotbars) do
+                bmHB:GiveTime()
+            end
+        end
     end
     btnUtils.Output('\arNot in game, stopping button master.\ax')
 end

@@ -28,6 +28,9 @@ BMHotbarClass.importText            = ""
 BMHotbarClass.decodedObject         = {}
 
 BMHotbarClass.newSetName            = ""
+BMHotbarClass.currentSelectedSet    = 0
+
+BMHotbarClass.lastFrameTime         = 0
 
 BMHotbarClass.importTextChanged     = false
 
@@ -144,6 +147,8 @@ function BMHotbarClass:RenderTabs()
         self:RenderTabContextMenu()
         self:RenderCreateTab()
 
+        self.currentSelectedSet = 1
+
         local style = ImGui.GetStyle()
         ImGui.SetCursorPos(ImVec2(start_x + settingsIconSize + (style.ItemSpacing.x), start_y))
 
@@ -173,6 +178,7 @@ function BMHotbarClass:RenderTabs()
                 for i, set in ipairs(BMSettings:GetCharacterWindowSets(self.id)) do
                     if ImGui.BeginTabItem(set) then
                         SetLabel = set
+                        self.currentSelectedSet = i
 
                         -- tab edit popup
                         if ImGui.BeginPopupContextItem(set) then
@@ -382,6 +388,36 @@ function BMHotbarClass:RenderTabContextMenu()
             if ImGui.MenuItem((BMSettings:GetCharacterWindow(self.id).CompactMode and "Normal" or "Compact") .. " Mode") then
                 BMSettings:GetCharacterWindow(self.id).CompactMode = not BMSettings:GetCharacterWindow(self.id).CompactMode
                 BMSettings:SaveSettings(true)
+            end
+            local fps_scale = {
+                {
+                    label = "Instant",
+                    fps = 0,
+                },
+                {
+                    label = "10 FPS",
+                    fps = 1,
+                },
+                {
+                    label = "4 FPS",
+                    fps = 2.5,
+                },
+                {
+                    label = "1 FPS",
+                    fps   = 10,
+                },
+            }
+
+            if ImGui.BeginMenu("Update FPS") then
+                for _, v in ipairs(fps_scale) do
+                    local checked = BMSettings:GetCharacterWindow(self.id).FPS == v.fps
+                    if ImGui.MenuItem(v.label, nil, checked) then
+                        BMSettings:GetCharacterWindow(self.id).FPS = v.fps
+                        BMSettings:SaveSettings(true)
+                        break
+                    end
+                end
+                ImGui.EndMenu()
             end
             -- TODO: Make this a reference to a character since it can dynamically change.
             --if ImGui.MenuItem("Save Layout as Default") then
@@ -687,6 +723,34 @@ function BMHotbarClass:UpdatePosition(width, height, x, y, hideTitleBar, compact
     BMSettings:GetCharacterWindow(self.id).HideTitleBar = hideTitleBar
     BMSettings:GetCharacterWindow(self.id).CompactMode  = compactMode
     BMSettings:SaveSettings(true)
+end
+
+function BMHotbarClass:GiveTime()
+    local now = os.clock()
+
+    -- update every visible button to save on our FPS.
+    if not BMSettings:GetCharacterWindow(self.id).FPS then
+        BMSettings:GetCharacterWindow(self.id).FPS = 0
+        BMSettings:SaveSettings(true)
+    end
+
+    local fps = BMSettings:GetCharacterWindow(self.id).FPS / 10
+
+    if now - self.lastFrameTime < fps then return end
+    self.lastFrameTime = now
+
+    for i, set in ipairs(BMSettings:GetCharacterWindowSets(self.id)) do
+        if self.currentSelectedSet == i then
+            btnUtils.Debug("Caching Visibile Buttons for Set: %s / %d", set, i)
+            local renderButtonCount = self.visibleButtonCount
+
+            for ButtonIndex = 1, renderButtonCount do
+                local button = BMSettings:GetButtonBySetIndex(set, ButtonIndex)
+
+                BMButtonHandlers.EvaluateAndCache(button)
+            end
+        end
+    end
 end
 
 return BMHotbarClass
