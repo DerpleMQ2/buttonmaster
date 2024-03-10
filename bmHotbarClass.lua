@@ -767,7 +767,7 @@ function BMHotbarClass:GiveTime()
 
     for i, set in ipairs(BMSettings:GetCharacterWindowSets(self.id)) do
         if self.currentSelectedSet == i then
-            btnUtils.Debug("Caching Visibile Buttons for Set: %s / %d", set, i)
+            --btnUtils.Debug("Caching Visibile Buttons for Set: %s / %d", set, i)
             local renderButtonCount = self.visibleButtonCount
 
             for ButtonIndex = 1, renderButtonCount do
