@@ -257,7 +257,6 @@ end
 
 function BMHotbarClass:RenderTabContextMenu()
     local openPopup = false
-    local btnSize = (BMSettings:GetCharacterWindow(self.id).ButtonSize or 6) * 10
 
     local unassigned = {}
     local charLoadedSets = {}
@@ -316,11 +315,11 @@ function BMHotbarClass:RenderTabContextMenu()
 
         if ImGui.BeginMenu("Delete Hotkey") then
             local sortedButtons = {}
-            for k, v in pairs(BMSettings:GetSettings().Buttons) do table.insert(sortedButtons, { Label = BMButtonHandlers.ResolveButtonLabel(v, btnSize, true), id = k, }) end
+            for k, v in pairs(BMSettings:GetSettings().Buttons) do table.insert(sortedButtons, { Label = BMButtonHandlers.ResolveButtonLabel(v, true), id = k, }) end
             table.sort(sortedButtons, function(a, b) return a.Label < b.Label end)
 
             for _, buttonData in pairs(sortedButtons) do
-                if ImGui.MenuItem(BMButtonHandlers.ResolveButtonLabel(buttonData, btnSize, true)) then
+                if ImGui.MenuItem(BMButtonHandlers.ResolveButtonLabel(buttonData, true)) then
                     -- clean up any references to this Button.
                     for setNameKey, setButtons in pairs(BMSettings:GetSettings().Sets) do
                         for buttonKey, buttonName in pairs(setButtons) do
@@ -509,7 +508,6 @@ end
 
 function BMHotbarClass:RenderContextMenu(Set, Index, buttonID)
     local button = BMSettings:GetButtonBySetIndex(Set, Index)
-    local btnSize = (BMSettings:GetCharacterWindow(self.id).ButtonSize or 6) * 10
 
     if ImGui.BeginPopupContextItem(buttonID) then
         local unassigned = {}
@@ -537,15 +535,15 @@ function BMHotbarClass:RenderContextMenu(Set, Index, buttonID)
 
                 -- Sort the keys based on the Label field
                 table.sort(sortedKeys, function(a, b)
-                    local labelA = unassigned[a] and BMButtonHandlers.ResolveButtonLabel(unassigned[a], btnSize, true)
-                    local labelB = unassigned[b] and BMButtonHandlers.ResolveButtonLabel(unassigned[b], btnSize, true)
+                    local labelA = unassigned[a] and BMButtonHandlers.ResolveButtonLabel(unassigned[a], true)
+                    local labelB = unassigned[b] and BMButtonHandlers.ResolveButtonLabel(unassigned[b], true)
                     return labelA < labelB
                 end)
 
                 for _, key in ipairs(sortedKeys) do
                     local value = unassigned[key]
                     if value ~= nil then
-                        if ImGui.MenuItem(BMButtonHandlers.ResolveButtonLabel(value, btnSize, true)) then
+                        if ImGui.MenuItem(BMButtonHandlers.ResolveButtonLabel(value, true)) then
                             BMSettings:GetSettings().Sets[Set][Index] = key
                             BMSettings:SaveSettings(true)
                             break
@@ -592,6 +590,7 @@ function BMHotbarClass:RenderButtons(Set)
 
     for ButtonIndex = 1, renderButtonCount do
         local button = BMSettings:GetButtonBySetIndex(Set, ButtonIndex)
+
         local clicked = false
 
         local buttonID = string.format("##Button_%s_%d", Set, ButtonIndex)
@@ -766,8 +765,6 @@ function BMHotbarClass:GiveTime()
     if now - self.lastFrameTime < fps then return end
     self.lastFrameTime = now
 
-    local btnSize = (BMSettings:GetCharacterWindow(self.id).ButtonSize or 6) * 10
-
     for i, set in ipairs(BMSettings:GetCharacterWindowSets(self.id)) do
         if self.currentSelectedSet == i then
             btnUtils.Debug("Caching Visibile Buttons for Set: %s / %d", set, i)
@@ -776,7 +773,7 @@ function BMHotbarClass:GiveTime()
             for ButtonIndex = 1, renderButtonCount do
                 local button = BMSettings:GetButtonBySetIndex(set, ButtonIndex)
 
-                BMButtonHandlers.EvaluateAndCache(button, btnSize)
+                BMButtonHandlers.EvaluateAndCache(button)
             end
         end
     end
