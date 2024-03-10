@@ -135,6 +135,9 @@ function BMHotbarClass:RenderHotbar(flags)
     if self.openGUI ~= self:IsVisible() then
         self:SetVisible(self.openGUI)
         self.openGUI = true
+        if not self:IsVisible() then
+            btnUtils.Output("Hotbar %d hidden! Use `/btn %d` to bring it back.", self.id, self.id)
+        end
     end
 end
 
