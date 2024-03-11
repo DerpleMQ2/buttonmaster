@@ -106,7 +106,7 @@ end
 ---@param cursorScreenPos table # cursor position on screen
 ---@param size number # button size
 function BMButtonHandlers.RenderButtonCooldown(Button, cursorScreenPos, size)
-    local countDown, coolDowntimer, toggleLocked = BMButtonHandlers.GetButtonCooldown(Button)
+    local countDown, coolDowntimer, toggleLocked = BMButtonHandlers.GetButtonCooldown(Button, true)
     if coolDowntimer == 0 and not toggleLocked then return end
 
     local ratio = 1 - (countDown / (coolDowntimer))
@@ -299,7 +299,6 @@ end
 
 function BMButtonHandlers.EvaluateAndCache(Button)
     BMButtonHandlers.ResolveButtonLabel(Button, false, true)
-    BMButtonHandlers.GetButtonCooldown(Button, true)
 end
 
 ---@param Button table # BMButtonConfig
