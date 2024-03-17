@@ -1,7 +1,9 @@
-local mq                        = require('mq')
-local btnUtils                  = require('lib.buttonUtils')
+local mq            = require('mq')
+local btnUtils      = require('lib.buttonUtils')
 
-local settings_path             = mq.configDir .. '/ButtonMaster.lua'
+local settings_base = mq.configDir .. '/ButtonMaster'
+local settings_path = settings_base .. '.lua '
+
 
 local BMSettings                = {}
 BMSettings.__index              = BMSettings
@@ -29,6 +31,11 @@ end
 
 function BMSettings:SaveSettings(doBroadcast)
     if doBroadcast == nil then doBroadcast = true end
+
+    if not self.settings.LastBackup or os.time() - self.settings.LastBackup > 3600 * 24 then
+        self.settings.LastBackup = os.time()
+        mq.pickle(mq.configDir .. "/Buttonmaster-Backups/ButtonMaster-backup-" .. os.date("%m-%d-%y-%H-%M-%S") .. ".lua", self.settings)
+    end
 
     mq.pickle(settings_path, self.settings)
 
