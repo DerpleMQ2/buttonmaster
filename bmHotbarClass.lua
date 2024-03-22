@@ -14,6 +14,8 @@ BMHotbarClass.openGUI               = true
 BMHotbarClass.shouldDrawGUI         = true
 BMHotbarClass.lastWindowX           = 0
 BMHotbarClass.lastWindowY           = 0
+BMHotbarClass.lastButtonPageHeight  = 0
+BMHotbarClass.lastButtonPageWidth   = 0
 BMHotbarClass.lastWindowHeight      = 0
 BMHotbarClass.lastWindowWidth       = 0
 BMHotbarClass.buttonSizeDirty       = false
@@ -78,10 +80,25 @@ end
 
 function BMHotbarClass:RenderHotbar(flags)
     if not self:IsVisible() then return end
-    ImGui.PushID("##MainWindow_" .. tostring(self.id))
-    self.openGUI, self.shouldDrawGUI = ImGui.Begin(string.format('Button Master - %d', self.id), self.openGUI, flags)
-    self.lastWindowX, self.lastWindowY = ImGui.GetWindowPos()
 
+    if self.updateWindowPosSize then
+        btnUtils.Debug("Setting new(%d: %s) pos: %d, %d and size: %d, %d", self.id, tostring(self), self.newX, self.newY, self.newWidth, self.newHeight)
+        self.updateWindowPosSize = false
+        ImGui.SetNextWindowSize(self.newWidth, self.newHeight)
+
+        ImGui.SetNextWindowPos(self.newX, self.newY)
+        self.lastButtonPageHeight = self.newHeight
+        self.lastButtonPageWidth  = self.newWidth
+        self.lastWindowX          = self.newX
+        self.lastWindowY          = self.newY
+    end
+
+    ImGui.PushID("##MainWindow_" .. tostring(self.id))
+    self.openGUI, self.shouldDrawGUI = ImGui.Begin(string.format('Button Master - %d', self.id), self.openGUI, bit32.bor(flags))
+
+    self.lastWindowX, self.lastWindowY = ImGui.GetWindowPos()
+    self.lastWindowHeight = ImGui.GetWindowHeight()
+    self.lastWindowWidth = ImGui.GetWindowWidth()
 
     local theme = BMSettings:GetSettings().Themes and BMSettings:GetSettings().Themes[self.id] or nil
     local themeColorPop = 0
@@ -102,13 +119,9 @@ function BMHotbarClass:RenderHotbar(flags)
                 end
             end
         end
-        if self.updateWindowPosSize then
-            self.updateWindowPosSize = false
-            ImGui.SetWindowSize(self.newWidth, self.newHeight)
-            ImGui.SetWindowPos(self.newX, self.newY)
-        end
 
         self:RenderTabs()
+
         self:RenderImportButtonPopup()
 
         local endTimeMS = os.clock() * 1000
@@ -164,9 +177,9 @@ function BMHotbarClass:RenderTabs()
         ImGui.PopStyleVar(2)
 
         ImGui.SameLine()
+
         self:RenderTabContextMenu()
         self:RenderCreateTab()
-
         self.currentSelectedSet = 1
 
         local style = ImGui.GetStyle()
@@ -175,9 +188,11 @@ function BMHotbarClass:RenderTabs()
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, 0, 0)
         ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, 0, 0)
         ImGui.BeginChild("##buttons_child", nil, nil, bit32.bor(ImGuiWindowFlags.AlwaysAutoResize))
+
         if BMSettings:GetCharacterWindowSets(self.id)[1] ~= nil then
             self:RenderButtons(BMSettings:GetCharacterWindowSets(self.id)[1])
         end
+
         ImGui.EndChild()
         ImGui.PopStyleVar(2)
     else
@@ -407,6 +422,25 @@ function BMHotbarClass:RenderTabContextMenu()
             self.importTextChanged = true
         end
 
+        if ImGui.BeginMenu("Copy Local Set") then
+            local charList = {}
+            for k, _ in pairs(BMSettings:GetSettings().Characters) do
+                local menuItem = k:sub(1, 1):upper() .. k:sub(2)
+                menuItem = menuItem:gsub("_", ": ")
+                table.insert(charList, { displayName = menuItem, key = k, })
+            end
+            table.sort(charList, function(a, b) return a.key < b.key end)
+            for _, value in ipairs(charList) do
+                if ImGui.MenuItem(value.displayName) then
+                    local newTable = btnUtils.deepcopy(BMSettings:GetSettings().Characters[value.key])
+                    BMSettings:GetSettings().Characters[BMSettings.CharConfig] = newTable
+                    BMSettings:SaveSettings(true)
+                    BMUpdateSettings = true
+                end
+            end
+            ImGui.EndMenu()
+        end
+
         ImGui.Separator()
 
         if ImGui.BeginMenu("Display Settings") then
@@ -451,8 +485,8 @@ function BMHotbarClass:RenderTabContextMenu()
             -- TODO: Make this a reference to a character since it can dynamically change.
             --if ImGui.MenuItem("Save Layout as Default") then
             --    BMSettings:GetSettings().Defaults = {
-            --        width = self.lastWindowWidth,
-            --        height = self.lastWindowHeight,
+            --        width = self.lastButtonPageWidth,
+            --        height = self.lastButtonPageHeight,
             --        x = self.lastWindowX,
             --        y = self.lastWindowY,
             --        CharSettings = BMSettings:GetCharConfig(),
@@ -481,8 +515,8 @@ function BMHotbarClass:RenderTabContextMenu()
                 from = mq.TLO.Me.DisplayName(),
                 script = "ButtonMaster",
                 event = "CopyLoc",
-                width = self.lastWindowWidth,
-                height = self.lastWindowHeight,
+                width = self.lastButtonPageWidth,
+                height = self.lastButtonPageHeight,
                 x = self.lastWindowX,
                 y = self.lastWindowY,
                 windowId = self.id,
@@ -583,7 +617,7 @@ end
 ---@param Set string
 function BMHotbarClass:RenderButtons(Set)
     ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, ImVec2(4, 4))
-    if ImGui.GetWindowWidth() ~= self.lastWindowWidth or ImGui.GetWindowHeight() ~= self.lastWindowHeight or self.buttonSizeDirty then
+    if ImGui.GetWindowWidth() ~= self.lastButtonPageWidth or ImGui.GetWindowHeight() ~= self.lastButtonPageHeight or self.buttonSizeDirty then
         self:RecalculateVisibleButtons(Set)
     end
 
@@ -639,16 +673,21 @@ end
 
 function BMHotbarClass:RecalculateVisibleButtons(Set)
     self.buttonSizeDirty = false
-    self.lastWindowWidth = ImGui.GetWindowWidth()
-    self.lastWindowHeight = ImGui.GetWindowHeight()
+
+    btnUtils.Debug("\arHave old lW=%d lH=%d", self.lastButtonPageWidth, self.lastButtonPageHeight)
+
+    self.lastButtonPageWidth = ImGui.GetWindowWidth()
+    self.lastButtonPageHeight = ImGui.GetWindowHeight()
+
+    btnUtils.Debug("\arSetting new lW=%d lH=%d", self.lastButtonPageWidth, self.lastButtonPageHeight)
 
     local cursorX, cursorY = ImGui.GetCursorPos() -- this will get us the x pos we start at which tells us of the offset from the main window border
     local style = ImGui.GetStyle()                -- this will get us ItemSpacing.x which is the amount of space between buttons
 
     -- global button configs
     local btnSize = (BMSettings:GetCharacterWindow(self.id).ButtonSize or 6) * 10
-    self.cachedCols = math.floor((self.lastWindowWidth - cursorX) / (btnSize + style.ItemSpacing.x))
-    self.cachedRows = math.floor((self.lastWindowHeight - cursorY) / (btnSize + style.ItemSpacing.y))
+    self.cachedCols = math.floor((self.lastButtonPageWidth - cursorX) / (btnSize + style.ItemSpacing.x))
+    self.cachedRows = math.floor((self.lastButtonPageHeight - cursorY) / (btnSize + style.ItemSpacing.y))
 
     local count = 100
     if self.cachedRows * self.cachedCols < 100 then count = self.cachedRows * self.cachedCols end
@@ -743,15 +782,20 @@ function BMHotbarClass:RenderCreateTab()
     end
 end
 
-function BMHotbarClass:UpdatePosition(width, height, x, y, hideTitleBar, compactMode)
-    self.updateWindowPosSize                            = true
-    self.newWidth                                       = width
-    self.newHeight                                      = height
-    self.newX                                           = x
-    self.newY                                           = y
-    BMSettings:GetCharacterWindow(self.id).HideTitleBar = hideTitleBar
-    BMSettings:GetCharacterWindow(self.id).CompactMode  = compactMode
-    BMSettings:SaveSettings(true)
+function BMHotbarClass:ReloadConfig()
+    local config = BMSettings:GetCharacterWindow(self.id)
+    btnUtils.Debug("\ayWindow(%d: %s) config: \n%s", self.id, tostring(self), btnUtils.dumpTable(config))
+    self.updateWindowPosSize           = true
+    self.newWidth                      = config.Width or 100
+    self.newHeight                     = config.Height or 40
+    self.newX                          = config.Pos and (config.Pos.x or 10)
+    self.newY                          = config.Pos and (config.Pos.y or 10)
+    self.buttonSizeDirty               = true
+
+    self.lastWindowX, self.lastWindowY = self.newX, self.newY
+    self.lastWindowWidth               = self.newWidth
+    self.lastWindowHeight              = self.newHeight
+    btnUtils.Debug("\agWindow(%d: %s) config set!", self.id, tostring(self))
 end
 
 function BMHotbarClass:GiveTime()
@@ -779,6 +823,21 @@ function BMHotbarClass:GiveTime()
                 BMButtonHandlers.EvaluateAndCache(button)
             end
         end
+    end
+
+    local config = BMSettings:GetCharacterWindow(self.id)
+
+    if config then
+        if not config.Pos or (config.Pos.x ~= self.lastWindowX or config.Pos.y ~= self.lastWindowY) or config.Height ~= self.lastWindowHeight or config.Width ~= self.lastWindowWidth then
+            config.Pos    = config.Pos or {}
+            config.Pos.x  = self.lastWindowX
+            config.Pos.y  = self.lastWindowY
+            config.Height = self.lastWindowHeight
+            config.Width  = self.lastWindowWidth
+            BMSettings:SaveSettings(true)
+        end
+    else
+        btnUtils.Output("\ayError: No config found for bar: %d", self.id)
     end
 end
 

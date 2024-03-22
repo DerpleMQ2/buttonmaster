@@ -10,23 +10,24 @@
         Shwebro, Kevbro, RYN
 --]]
 
-local version        = "2.3"
-local mq             = require('mq')
+local version       = "2.3"
+local mq            = require('mq')
 
-ButtonActors         = require 'actors'
-Icons                = require('mq.ICONS')
-BMSettings           = require('bmSettings').new()
-BMEditPopup          = require('bmEditButtonPopup')
+ButtonActors        = require 'actors'
+Icons               = require('mq.ICONS')
+BMSettings          = require('bmSettings').new()
+BMEditPopup         = require('bmEditButtonPopup')
 
-local BMHotbarClass  = require('bmHotbarClass')
-local btnUtils       = require('lib.buttonUtils')
+local BMHotbarClass = require('bmHotbarClass')
+local btnUtils      = require('lib.buttonUtils')
 
 -- globals
-BMHotbars            = {}
+BMHotbars           = {}
+BMReloadSettings    = false
+BMUpdateSettings    = false
 
 -- [[ UI ]] --
-local openGUI        = true
-local reloadSettings = false
+local openGUI       = true
 
 -- binds
 local function BindBtn(num)
@@ -60,6 +61,8 @@ end
 local function Setup()
     if not BMSettings:LoadSettings() then return end
 
+    BMHotbars = {}
+
     for idx, _ in ipairs(BMSettings:GetCharConfig().Windows or {}) do
         table.insert(BMHotbars, BMHotbarClass.new(idx, false))
     end
@@ -81,9 +84,19 @@ end
 local function GiveTime()
     while mq.TLO.MacroQuest.GameState() == "INGAME" do
         mq.delay(10)
-        if reloadSettings then
-            reloadSettings = false
+        if BMReloadSettings then
+            BMReloadSettings = false
             BMSettings:LoadSettings()
+        end
+
+        if BMUpdateSettings then
+            BMUpdateSettings = false
+
+            Setup()
+
+            for _, bmHotbar in ipairs(BMHotbars) do
+                bmHotbar:ReloadConfig()
+            end
         end
 
         if #BMHotbars > 0 then
@@ -116,7 +129,8 @@ local script_actor = ButtonActors.register(function(message)
     btnUtils.Output("\ayGot Event from(\am%s\ay) event(\at%s\ay)", msg["from"], msg["event"])
 
     if msg["event"] == "SaveSettings" then
-        reloadSettings = true
+        btnUtils.Debug("Got new settings:\n%s", btnUtils.dumpTable(msg.newSettings))
+        BMSettings.settings = msg.newSettings
     elseif msg["event"] == "CopyLoc" then
         if msg.windowId <= #BMHotbars then
             BMHotbars[msg.windowId]:UpdatePosition((tonumber(msg["width"]) or 100), (tonumber(msg["height"]) or 100), (tonumber(msg["x"]) or 0), (tonumber(msg["y"]) or 0),

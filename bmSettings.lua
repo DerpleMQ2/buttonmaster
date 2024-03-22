@@ -41,7 +41,7 @@ function BMSettings:SaveSettings(doBroadcast)
 
     if doBroadcast and mq.TLO.MacroQuest.GameState() == "INGAME" then
         btnUtils.Output("\aySent Event from(\am%s\ay) event(\at%s\ay)", mq.TLO.Me.DisplayName(), "SaveSettings")
-        ButtonActors.send({ from = mq.TLO.Me.DisplayName(), script = "ButtonMaster", event = "SaveSettings", })
+        ButtonActors.send({ from = mq.TLO.Me.DisplayName(), script = "ButtonMaster", event = "SaveSettings", newSettings = self.settings, })
     end
 end
 
@@ -350,7 +350,7 @@ function BMSettings:LoadSettings()
                 },
                 Characters = {
                     [self.CharConfig] = {
-                        Windows = { [1] = { Visible = true, Sets = {}, }, },
+                        Windows = { [1] = { Visible = true, Pos = { x = 10, y = 10, }, Sets = {}, }, },
                         Locked = false,
                     },
                 },
