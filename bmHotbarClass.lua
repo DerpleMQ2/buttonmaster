@@ -209,7 +209,7 @@ function BMHotbarClass:RenderTabs()
         self:RenderCreateTab()
 
         if ImGui.BeginTabBar("Tabs", ImGuiTabBarFlags.Reorderable) then
-            if #BMSettings:GetCharacterWindowSets(self.id) > 0 then
+            if (#BMSettings:GetCharacterWindowSets(self.id) or 0) > 0 then
                 for i, set in ipairs(BMSettings:GetCharacterWindowSets(self.id)) do
                     if ImGui.BeginTabItem(set) then
                         SetLabel = set
@@ -278,7 +278,7 @@ function BMHotbarClass:RenderTabContextMenu()
 
     local unassigned = {}
     local charLoadedSets = {}
-    for _, v in ipairs(BMSettings:GetCharacterWindowSets(self.id)) do
+    for _, v in ipairs(BMSettings:GetCharacterWindowSets(self.id) or {}) do
         charLoadedSets[v] = true
     end
     for k, _ in pairs(BMSettings:GetSettings().Sets) do
@@ -333,7 +333,10 @@ function BMHotbarClass:RenderTabContextMenu()
 
         if ImGui.BeginMenu("Delete Hotkey") then
             local sortedButtons = {}
-            for k, v in pairs(BMSettings:GetSettings().Buttons) do table.insert(sortedButtons, { Label = BMButtonHandlers.ResolveButtonLabel(v, true), id = k, }) end
+            for k, v in pairs(BMSettings:GetSettings().Buttons) do
+                table.insert(sortedButtons,
+                    { Label = BMButtonHandlers.ResolveButtonLabel(v, true), id = k, })
+            end
             table.sort(sortedButtons, function(a, b) return a.Label < b.Label end)
 
             for _, buttonData in pairs(sortedButtons) do

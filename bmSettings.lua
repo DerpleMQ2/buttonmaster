@@ -350,8 +350,7 @@ function BMSettings:LoadSettings()
                 },
                 Characters = {
                     [self.CharConfig] = {
-                        Windows = { [1] = { Visible = true, Pos = { x = 10, y = 10, }, Sets = {}, }, },
-                        Locked = false,
+                        Windows = { [1] = { Visible = true, Pos = { x = 10, y = 10, }, Sets = {}, Locked = false, }, },
                     },
                 },
             }
@@ -365,7 +364,8 @@ function BMSettings:LoadSettings()
     if self:NeedUpgrade() then return false end
 
     self.settings.Characters[self.CharConfig] = self.settings.Characters[self.CharConfig] or {}
-    self.settings.Characters[self.CharConfig].Windows = self.settings.Characters[self.CharConfig].Windows or {}
+    self.settings.Characters[self.CharConfig].Windows = self.settings.Characters[self.CharConfig].Windows or
+        { [1] = { Visible = true, Pos = { x = 10, y = 10, }, Sets = {}, Locked = false, }, }
 
     return true
 end
