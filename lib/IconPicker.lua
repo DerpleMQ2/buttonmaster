@@ -57,6 +57,7 @@ function IconPicker:RenderTab(getterFn, maxIcon)
     local cols = math.max(math.floor(width / (IconSize + style.ItemSpacing.x)), 1)
     local maxPage = math.ceil(maxIcon / self.iconsPerPage)
     if self.Page > maxPage then self.Page = maxPage end
+    ImGui.BeginChild("Icon##Picker")
     if ImGui.BeginTable("SpellIcons", cols) then
         local startId = math.max(0, ((self.Page - 1) * self.iconsPerPage))
         local endId   = math.min(maxIcon, startId + self.iconsPerPage - 1)
@@ -65,6 +66,7 @@ function IconPicker:RenderTab(getterFn, maxIcon)
             getterFn(self, iconId)
         end
         ImGui.EndTable()
+        ImGui.EndChild()
     end
 end
 
