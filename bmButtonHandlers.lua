@@ -76,7 +76,7 @@ function BMButtonHandlers.GetButtonCooldown(Button, cacheUpdate)
         end
     elseif Button.TimerType == "Seconds Timer" then
         if Button.CooldownTimer then
-            Button.CachedCountDown = Button.CooldownTimer - os.clock()
+            Button.CachedCountDown = Button.CooldownTimer - os.time()
             if Button.CachedCountDown <= 0 then
                 Button.CooldownTimer = nil
                 return 0, 0, false
@@ -293,7 +293,7 @@ end
 
 function BMButtonHandlers.FireTimer(Button)
     if Button.TimerType == "Seconds Timer" then
-        Button.CooldownTimer = os.clock() + Button.Cooldown
+        Button.CooldownTimer = os.time() + Button.Cooldown
     end
 end
 
