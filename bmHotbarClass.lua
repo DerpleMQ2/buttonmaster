@@ -1,6 +1,7 @@
 local mq                            = require('mq')
 local btnUtils                      = require('lib.buttonUtils')
 local BMButtonHandlers              = require('bmButtonHandlers')
+local themes                        = require('extras.themes')
 
 local WINDOW_SETTINGS_ICON_SIZE     = 22
 
@@ -101,6 +102,10 @@ function BMHotbarClass:RenderHotbar(flags)
     self.lastWindowWidth = ImGui.GetWindowWidth()
 
     local theme = BMSettings:GetSettings().Themes and BMSettings:GetSettings().Themes[self.id] or nil
+    if not theme then
+        theme = themes[BMSettings:GetCharacterWindow(self.id).Theme or ""] or nil
+    end
+
     local themeColorPop = 0
     local themeStylePop = 0
 
@@ -109,13 +114,23 @@ function BMHotbarClass:RenderHotbar(flags)
         local cursorScreenPos = ImGui.GetCursorScreenPosVec()
 
         if theme ~= nil then
-            for _, t in pairs(theme) do
+            for n, t in pairs(theme) do
                 if t.color then
                     ImGui.PushStyleColor(ImGuiCol[t.element], t.color.r, t.color.g, t.color.b, t.color.a)
                     themeColorPop = themeColorPop + 1
                 elseif t.stylevar then
                     ImGui.PushStyleVar(ImGuiStyleVar[t.stylevar], t.value)
                     themeStylePop = themeStylePop + 1
+                else
+                    if type(t) == 'table' then
+                        if #t == 4 then
+                            ImGui.PushStyleColor(ImGuiCol[n], unpack(t))
+                            themeColorPop = themeColorPop + 1
+                        else
+                            ImGui.PushStyleVar(ImGuiStyleVar[n], unpack(t))
+                            themeStylePop = themeStylePop + 1
+                        end
+                    end
                 end
             end
         end
@@ -400,6 +415,18 @@ function BMHotbarClass:RenderTabContextMenu()
                 local checked = BMSettings:GetCharacterWindow(self.id).Font == v.size
                 if ImGui.MenuItem(v.label, nil, checked) then
                     BMSettings:GetCharacterWindow(self.id).Font = v.size
+                    BMSettings:SaveSettings(true)
+                    break
+                end
+            end
+            ImGui.EndMenu()
+        end
+
+        if ImGui.BeginMenu("Set Theme") then
+            for n, _ in pairs(themes) do
+                local checked = (BMSettings:GetCharacterWindow(self.id).Theme or "") == n
+                if ImGui.MenuItem(n, nil, checked) then
+                    BMSettings:GetCharacterWindow(self.id).Theme = n
                     BMSettings:SaveSettings(true)
                     break
                 end
