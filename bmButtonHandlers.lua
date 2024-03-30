@@ -9,6 +9,10 @@ local animSpellIcons     = mq.FindTextureAnimation('A_SpellIcons')
 local BMButtonHandlers   = {}
 BMButtonHandlers.__index = BMButtonHandlers
 
+function BMButtonHandlers.GetTimeMS()
+    return mq.gettime() / 1000
+end
+
 ---@param Button table # BMButtonConfig
 function BMButtonHandlers.ExportButtonToClipBoard(Button)
     local sharableButton = { Type = "Button", Button = Button, }
@@ -76,8 +80,8 @@ function BMButtonHandlers.GetButtonCooldown(Button, cacheUpdate)
         end
     elseif Button.TimerType == "Seconds Timer" then
         if Button.CooldownTimer then
-            Button.CachedCountDown = Button.CooldownTimer - os.time()
-            if Button.CachedCountDown <= 0 then
+            Button.CachedCountDown = Button.CooldownTimer - BMButtonHandlers.GetTimeMS()
+            if Button.CachedCountDown <= 0 or Button.CachedCountDown > Button.CooldownTimer then
                 Button.CooldownTimer = nil
                 return 0, 0, false
             end
@@ -293,7 +297,7 @@ end
 
 function BMButtonHandlers.FireTimer(Button)
     if Button.TimerType == "Seconds Timer" then
-        Button.CooldownTimer = os.time() + Button.Cooldown
+        Button.CooldownTimer = BMButtonHandlers.GetTimeMS() + Button.Cooldown
     end
 end
 
