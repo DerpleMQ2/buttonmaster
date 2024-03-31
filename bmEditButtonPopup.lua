@@ -15,7 +15,7 @@ BMButtonEditor.editButtonUIChanged = false
 BMButtonEditor.tmpButton           = nil
 
 BMButtonEditor.selectedTimerType   = 1
-BMButtonEditor.selectedUpdateRate = 1
+BMButtonEditor.selectedUpdateRate  = 1
 
 function BMButtonEditor:RenderEditButtonPopup()
     if not self.editButtonPopupOpen then
@@ -159,7 +159,7 @@ function BMButtonEditor:OpenEditPopup(Set, Index)
             end
         end
         for index, type in ipairs(BMSettings.Constants.UpdateRates) do
-            if type == button.UpdateRate then
+            if type.Value == button.UpdateRate then
                 self.selectedUpdateRate = index
                 break
             end
@@ -246,9 +246,10 @@ function BMButtonEditor:RenderButtonEditUI(renderButton, enableShare, enableEdit
         renderButton.IconLua, textChanged = ImGui.InputText('Icon Lua', renderButton.IconLua or '')
         btnUtils.Tooltip(
             "Dynamically override the IconID with this Lua function. \nNote: This MUST return number, string : IconId, IconType")
-        
-        self.selectedUpdateRate, _ = ImGui.Combo("Update Rate", self.selectedUpdateRate, BMSettings.Constants.UpdateRates)
-        renderButton.UpdateRate = BMSettings.Constants.UpdateRates[self.selectedUpdateRate]
+
+        self.selectedUpdateRate, _ = ImGui.Combo("Update Rate", self.selectedUpdateRate, function(idx) return BMSettings.Constants.UpdateRates[idx].Display end,
+            #BMSettings.Constants.UpdateRates)
+        renderButton.UpdateRate = BMSettings.Constants.UpdateRates[self.selectedUpdateRate].Value
         self.editButtonUIChanged = self.editButtonUIChanged or textChanged
     end
 

@@ -43,7 +43,7 @@ function BMButtonHandlers.GetButtonCooldown(Button, cacheUpdate)
     Button.CachedCountDown     = 0
     Button.CachedCoolDownTimer = 0
     Button.CachedToggleLocked  = false
-	Button.CachedLastRan       = BMButtonHandlers.GetTimeMS()
+    Button.CachedLastRan       = BMButtonHandlers.GetTimeMS()
 
     if Button.TimerType == "Custom Lua" then
         local success
@@ -114,31 +114,13 @@ end
 ---@param cursorScreenPos table # cursor position on screen
 ---@param size number # button size
 function BMButtonHandlers.RenderButtonCooldown(Button, cursorScreenPos, size)
-    
-	local currentTimer = BMButtonHandlers.GetTimeMS()
-    local updateRate =0
+    local currentTimer = BMButtonHandlers.GetTimeMS()
+    local updateRate = Button.UpdateRate or 0
 
-    if Button.UpdateRate ~=nil then
-        --this button has a defined rate
-        if Button.UpdateRate == "Unlimited" then
-            updateRate=0
-        elseif Button.UpdateRate =="1 per second" then
-            updateRate=1
-        elseif Button.UpdateRate == "2 per second" then
-            updateRate=0.5
-        elseif Button.UpdateRate == "4 per second" then
-            updateRate=0.25
-        elseif Button.UpdateRate == "10 per second" then
-            updateRate=0.1
-        elseif Button.UpdateRate == "20 per second" then
-            updateRate=0.05
-        end
-    end
+    local updateCache = (Button.CachedLastRan == nil or ((currentTimer - Button.CachedLastRan) > updateRate) or ((currentTimer - Button.CachedLastRan) < 0))
+    local countDown, coolDowntimer, toggleLocked = BMButtonHandlers.GetButtonCooldown(Button, updateCache)
 
-	local updateCache = (Button.CachedLastRan == nil or ((currentTimer - Button.CachedLastRan) > updateRate) or ((currentTimer - Button.CachedLastRan)<0))
-	local countDown, coolDowntimer, toggleLocked = BMButtonHandlers.GetButtonCooldown(Button, updateCache)
-	
-	if coolDowntimer == 0 and not toggleLocked then return end
+    if coolDowntimer == 0 and not toggleLocked then return end
 
     local ratio = 1 - (countDown / (coolDowntimer))
 
