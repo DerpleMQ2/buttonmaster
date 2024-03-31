@@ -97,9 +97,11 @@ function BMHotbarClass:RenderHotbar(flags)
     ImGui.PushID("##MainWindow_" .. tostring(self.id))
     self.openGUI, self.shouldDrawGUI = ImGui.Begin(string.format('Button Master - %d', self.id), self.openGUI, bit32.bor(flags))
 
-    self.lastWindowX, self.lastWindowY = ImGui.GetWindowPos()
-    self.lastWindowHeight = ImGui.GetWindowHeight()
-    self.lastWindowWidth = ImGui.GetWindowWidth()
+    if not ImGui.IsMouseDown(ImGuiMouseButton.Left) then
+        self.lastWindowX, self.lastWindowY = ImGui.GetWindowPos()
+        self.lastWindowHeight = ImGui.GetWindowHeight()
+        self.lastWindowWidth = ImGui.GetWindowWidth()
+    end
 
     local theme = BMSettings:GetSettings().Themes and BMSettings:GetSettings().Themes[self.id] or nil
     if not theme then
