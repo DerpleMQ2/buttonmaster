@@ -24,6 +24,16 @@ BMSettings.Constants.TimerTypes = {
     "Custom Lua",
 }
 
+BMSettings.Constants.UpdateRates = {
+    "Unlimited",
+    "1 per second",
+    "2 per second",
+    "4 per second",
+    "10 per second",
+    "20 per second",
+}
+
+
 function BMSettings.new()
     local newSettings      = setmetatable({}, BMSettings)
     newSettings.CharConfig = string.format("%s_%s", mq.TLO.EverQuest.Server(), mq.TLO.Me.DisplayName())
