@@ -5,16 +5,16 @@ local settings_base = mq.configDir .. '/ButtonMaster'
 local settings_path = settings_base .. '.lua '
 
 
-local BMSettings                = {}
-BMSettings.__index              = BMSettings
-BMSettings.settings             = {}
-BMSettings.CharConfig           = string.format("%s_%s", mq.TLO.EverQuest.Server(), mq.TLO.Me.DisplayName())
-BMSettings.Constants            = {}
+local BMSettings                 = {}
+BMSettings.__index               = BMSettings
+BMSettings.settings              = {}
+BMSettings.CharConfig            = string.format("%s_%s", mq.TLO.EverQuest.Server(), mq.TLO.Me.DisplayName())
+BMSettings.Constants             = {}
 
-BMSettings.Globals              = {}
-BMSettings.Globals.Version      = 7
+BMSettings.Globals               = {}
+BMSettings.Globals.Version       = 7
 
-BMSettings.Constants.TimerTypes = {
+BMSettings.Constants.TimerTypes  = {
     "Seconds Timer",
     "Item",
     "Spell Gem",
@@ -23,6 +23,16 @@ BMSettings.Constants.TimerTypes = {
     "Disc",
     "Custom Lua",
 }
+
+BMSettings.Constants.UpdateRates = {
+    { Display = "Unlimited",     Value = 0, },
+    { Display = "1 per second",  Value = 1, },
+    { Display = "2 per second",  Value = 0.5, },
+    { Display = "4 per second",  Value = 0.25, },
+    { Display = "10 per second", Value = 0.1, },
+    { Display = "20 per second", Value = 0.05, },
+}
+
 
 function BMSettings.new()
     local newSettings      = setmetatable({}, BMSettings)

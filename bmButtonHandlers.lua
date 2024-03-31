@@ -43,6 +43,7 @@ function BMButtonHandlers.GetButtonCooldown(Button, cacheUpdate)
     Button.CachedCountDown     = 0
     Button.CachedCoolDownTimer = 0
     Button.CachedToggleLocked  = false
+    Button.CachedLastRan       = BMButtonHandlers.GetTimeMS()
 
     if Button.TimerType == "Custom Lua" then
         local success
@@ -113,7 +114,12 @@ end
 ---@param cursorScreenPos table # cursor position on screen
 ---@param size number # button size
 function BMButtonHandlers.RenderButtonCooldown(Button, cursorScreenPos, size)
-    local countDown, coolDowntimer, toggleLocked = BMButtonHandlers.GetButtonCooldown(Button, true)
+    local currentTimer = BMButtonHandlers.GetTimeMS()
+    local updateRate = Button.UpdateRate or 0
+
+    local updateCache = (Button.CachedLastRan == nil or ((currentTimer - Button.CachedLastRan) > updateRate) or ((currentTimer - Button.CachedLastRan) < 0))
+    local countDown, coolDowntimer, toggleLocked = BMButtonHandlers.GetButtonCooldown(Button, updateCache)
+
     if coolDowntimer == 0 and not toggleLocked then return end
 
     local ratio = 1 - (countDown / (coolDowntimer))
