@@ -20,6 +20,7 @@ BMSettings.Constants.TimerTypes = {
     "Spell Gem",
     "AA",
     "Ability",
+    "Disc",
     "Custom Lua",
 }
 

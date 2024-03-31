@@ -96,6 +96,9 @@ function BMButtonHandlers.GetButtonCooldown(Button, cacheUpdate)
     elseif Button.TimerType == "AA" then
         Button.CachedCountDown = (mq.TLO.Me.AltAbilityTimer(Button.Cooldown)() or 0) / 1000
         Button.CachedCoolDownTimer = mq.TLO.Me.AltAbility(Button.Cooldown).MyReuseTime() or 0
+    elseif Button.TimerType == "Disc" then
+        Button.CachedCountDown = mq.TLO.Me.CombatAbilityTimer(Button.Cooldown).TotalSeconds() or 0
+        Button.CachedCoolDownTimer = (mq.TLO.Spell(Button.Cooldown).RecastTime() or 0) / 1000
     elseif Button.TimerType == "Ability" then
         if mq.TLO.Me.AbilityTimer and mq.TLO.Me.AbilityTimerTotal then
             Button.CachedCountDown = (mq.TLO.Me.AbilityTimer(Button.Cooldown)() or 0) / 1000

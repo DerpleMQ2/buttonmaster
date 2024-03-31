@@ -61,6 +61,13 @@ function BMButtonEditor:RenderEditButtonPopup()
                     self.tmpButton.Icon = nil
                     self.tmpButton.Cooldown = buttonText
                     self.tmpButton.TimerType = "Ability"
+                elseif attachmentType == "melee_ability" then
+                    self.tmpButton.Label = buttonText
+                    self.tmpButton.Cmd = string.format("/disc %s", buttonText)
+                    self.tmpButton.Icon = mq.TLO.Spell(buttonText).SpellIcon()
+                    self.tmpButton.IconType = "Spell"
+                    self.tmpButton.Cooldown = buttonText
+                    self.tmpButton.TimerType = "Disc"
                 elseif attachmentType == "social" then
                     self.tmpButton.Label = buttonText
                     if cursorIndex >= 120 then
@@ -284,6 +291,9 @@ function BMButtonEditor:RenderTimerPanel(renderButton)
     elseif BMSettings.Constants.TimerTypes[self.selectedTimerType] == "Ability" then
         renderButton.Cooldown = ImGui.InputText("Ability Name", tostring(renderButton.Cooldown))
         btnUtils.Tooltip("Name of the Ability that you want to track the cooldown of.")
+    elseif BMSettings.Constants.TimerTypes[self.selectedTimerType] == "Disc" then
+        renderButton.Cooldown = ImGui.InputText("Disc Name", tostring(renderButton.Cooldown))
+        btnUtils.Tooltip("Name of the Disc that you want to track the cooldown of.")
     end
 end
 
