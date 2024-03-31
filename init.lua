@@ -10,24 +10,25 @@
         Shwebro, Kevbro, RYN
 --]]
 
-local version       = "2.3"
-local mq            = require('mq')
+local version          = "2.3"
+local mq               = require('mq')
 
-ButtonActors        = require 'actors'
-Icons               = require('mq.ICONS')
-BMSettings          = require('bmSettings').new()
-BMEditPopup         = require('bmEditButtonPopup')
+ButtonActors           = require 'actors'
+Icons                  = require('mq.ICONS')
+BMSettings             = require('bmSettings').new()
+BMEditPopup            = require('bmEditButtonPopup')
 
-local BMHotbarClass = require('bmHotbarClass')
-local btnUtils      = require('lib.buttonUtils')
+local BMHotbarClass    = require('bmHotbarClass')
+local btnUtils         = require('lib.buttonUtils')
+local BMButtonHandlers = require('bmButtonHandlers')
 
 -- globals
-BMHotbars           = {}
-BMReloadSettings    = false
-BMUpdateSettings    = false
+BMHotbars              = {}
+BMReloadSettings       = false
+BMUpdateSettings       = false
 
 -- [[ UI ]] --
-local openGUI       = true
+local openGUI          = true
 
 -- binds
 local function BindBtn(num)
@@ -35,6 +36,30 @@ local function BindBtn(num)
     if BMHotbars[num] then
         BMHotbars[num]:ToggleVisible()
     end
+end
+
+local function BindBtnExec(set, index)
+    if not set or not index then
+        btnUtils.Output("\agUsage\aw: \am/btnexec \aw<\at\"set\"\aw> \aw<\atindex\aw>")
+        return
+    end
+
+    index = tonumber(index) or 0
+    local Button = BMSettings:GetButtonBySetIndex(set, index)
+
+    if Button.Unassigned then
+        btnUtils.Output("\arError\aw: \amSet: \at'%s' \amButtonIndex: \at%d \awIs Not Assigned!", set, index)
+        for s, data in pairs(BMSettings:GetSettings().Sets) do
+            btnUtils.Output("\awSet: \at%s", s)
+            for i, b in ipairs(data) do
+                btnUtils.Output("\t \aw[\at%d\aw] \am%s", i, b)
+            end
+        end
+        return
+    end
+
+    btnUtils.Output("\agRunning\aw: \amSet: \at%s \amButtonIndex: \at%d \aw:: \at%s", set, index, Button.Label)
+    BMButtonHandlers.Exec(Button)
 end
 
 local function ButtonGUI()
@@ -156,5 +181,6 @@ end
 -- Make sure to start after the settings are validated.
 mq.imgui.init('ButtonGUI', ButtonGUI)
 mq.bind('/btn', BindBtn)
+mq.bind('/btnexec', BindBtnExec)
 
 GiveTime()
