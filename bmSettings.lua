@@ -98,6 +98,14 @@ function BMSettings:GetCharacterWindow(windowId)
 end
 
 function BMSettings:GetCharacterWindowSets(windowId)
+    if not self.settings.Characters or
+        not self.settings.Characters[self.CharConfig] or
+        not self.settings.Characters[self.CharConfig].Windows or
+        not self.settings.Characters[self.CharConfig].Windows[windowId] or
+        not self.settings.Characters[self.CharConfig].Windows[windowId].Sets then
+        return {}
+    end
+
     return self.settings.Characters[self.CharConfig].Windows[windowId].Sets
 end
 
