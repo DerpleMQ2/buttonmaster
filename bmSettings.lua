@@ -13,6 +13,7 @@ BMSettings.Constants             = {}
 
 BMSettings.Globals               = {}
 BMSettings.Globals.Version       = 7
+BMSettings.Globals.CustomThemes  = {}
 
 BMSettings.Constants.TimerTypes  = {
     "Seconds Timer",
@@ -37,6 +38,13 @@ BMSettings.Constants.UpdateRates = {
 function BMSettings.new()
     local newSettings      = setmetatable({}, BMSettings)
     newSettings.CharConfig = string.format("%s_%s", mq.TLO.EverQuest.Server(), mq.TLO.Me.DisplayName())
+
+
+    local config, err = loadfile(mq.configDir .. '/Button_Master_Theme.lua')
+    if not err and config then
+        BMSettings.Globals.CustomThemes = config()
+    end
+
     return newSettings
 end
 
@@ -45,14 +53,21 @@ function BMSettings:SaveSettings(doBroadcast)
 
     if not self.settings.LastBackup or os.time() - self.settings.LastBackup > 3600 * 24 then
         self.settings.LastBackup = os.time()
-        mq.pickle(mq.configDir .. "/Buttonmaster-Backups/ButtonMaster-backup-" .. os.date("%m-%d-%y-%H-%M-%S") .. ".lua", self.settings)
+        mq.pickle(mq.configDir .. "/Buttonmaster-Backups/ButtonMaster-backup-" .. os.date("%m-%d-%y-%H-%M-%S") .. ".lua",
+            self.settings)
     end
 
     mq.pickle(settings_path, self.settings)
 
     if doBroadcast and mq.TLO.MacroQuest.GameState() == "INGAME" then
         btnUtils.Output("\aySent Event from(\am%s\ay) event(\at%s\ay)", mq.TLO.Me.DisplayName(), "SaveSettings")
-        ButtonActors.send({ from = mq.TLO.Me.DisplayName(), script = "ButtonMaster", event = "SaveSettings", newSettings = self.settings, })
+        ButtonActors.send({
+            from = mq.TLO.Me.DisplayName(),
+            script = "ButtonMaster",
+            event = "SaveSettings",
+            newSettings =
+                self.settings,
+        })
     end
 end
 
@@ -141,7 +156,8 @@ function BMSettings:ImportSetAndSave(sharableSet, windowId)
     local setName = sharableSet.Key
     if self.settings.Sets[setName] ~= nil then
         local newSetName = setName .. "_Imported_" .. os.date("%m-%d-%y-%H-%M-%S")
-        btnUtils.Output("\ayImport Set Warning: Set name: \at%s\ay already exists renaming it to \at%s\ax", setName, newSetName)
+        btnUtils.Output("\ayImport Set Warning: Set name: \at%s\ay already exists renaming it to \at%s\ax", setName,
+            newSetName)
         setName = newSetName
     end
 
@@ -170,7 +186,8 @@ function BMSettings:ConvertToLatestConfigVersion()
             if type(value) == 'table' then
                 if key:find("^(Button_)") and value.Cmd1 or value.Cmd2 or value.Cmd3 or value.Cmd4 or value.Cmd5 then
                     btnUtils.Output("Key: %s Needs Converted!", key)
-                    value.Cmd  = string.format("%s\n%s\n%s\n%s\n%s\n%s", value.Cmd or '', value.Cmd1 or '', value.Cmd2 or '',
+                    value.Cmd  = string.format("%s\n%s\n%s\n%s\n%s\n%s", value.Cmd or '', value.Cmd1 or '',
+                        value.Cmd2 or '',
                         value.Cmd3 or '', value.Cmd4 or '', value.Cmd5 or '')
                     value.Cmd  = value.Cmd:gsub("\n+", "\n")
                     value.Cmd  = value.Cmd:gsub("\n$", "")

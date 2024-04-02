@@ -83,7 +83,8 @@ function BMHotbarClass:RenderHotbar(flags)
     if not self:IsVisible() then return end
 
     if self.updateWindowPosSize then
-        btnUtils.Debug("Setting new(%d: %s) pos: %d, %d and size: %d, %d", self.id, tostring(self), self.newX, self.newY, self.newWidth, self.newHeight)
+        btnUtils.Debug("Setting new(%d: %s) pos: %d, %d and size: %d, %d", self.id, tostring(self), self.newX, self.newY,
+            self.newWidth, self.newHeight)
         self.updateWindowPosSize = false
         ImGui.SetNextWindowSize(self.newWidth, self.newHeight)
 
@@ -95,7 +96,8 @@ function BMHotbarClass:RenderHotbar(flags)
     end
 
     ImGui.PushID("##MainWindow_" .. tostring(self.id))
-    self.openGUI, self.shouldDrawGUI = ImGui.Begin(string.format('Button Master - %d', self.id), self.openGUI, bit32.bor(flags))
+    self.openGUI, self.shouldDrawGUI = ImGui.Begin(string.format('Button Master - %d', self.id), self.openGUI,
+        bit32.bor(flags))
 
     if not ImGui.IsMouseDown(ImGuiMouseButton.Left) then
         self.lastWindowX, self.lastWindowY = ImGui.GetWindowPos()
@@ -104,6 +106,12 @@ function BMHotbarClass:RenderHotbar(flags)
     end
 
     local theme = BMSettings:GetSettings().Themes and BMSettings:GetSettings().Themes[self.id] or nil
+
+    if not theme then
+        theme = BMSettings.Globals.CustomThemes and
+            BMSettings.Globals.CustomThemes[BMSettings:GetCharacterWindow(self.id).Theme] or nil
+    end
+
     if not theme then
         theme = themes[BMSettings:GetCharacterWindow(self.id).Theme or ""] or nil
     end
@@ -179,7 +187,8 @@ function BMHotbarClass:RenderTabs()
         local start_x, start_y = ImGui.GetCursorPos()
 
         local iconPadding = 2
-        local settingsIconSize = math.ceil(((BMSettings:GetCharacterWindow(self.id).ButtonSize or 6) * 10) / 2) - iconPadding
+        local settingsIconSize = math.ceil(((BMSettings:GetCharacterWindow(self.id).ButtonSize or 6) * 10) / 2) -
+            iconPadding
         ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 0, iconPadding)
         ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, 0, 0)
 
@@ -244,7 +253,8 @@ function BMHotbarClass:RenderTabs()
                                     BMSettings:GetCharacterWindowSets(self.id)[i] = self.newSetName
 
                                     -- move the old button set to the new name
-                                    BMSettings:GetSettings().Sets[newSetLabel], BMSettings:GetSettings().Sets[SetLabel] = BMSettings:GetSettings().Sets[SetLabel], nil
+                                    BMSettings:GetSettings().Sets[newSetLabel], BMSettings:GetSettings().Sets[SetLabel] =
+                                        BMSettings:GetSettings().Sets[SetLabel], nil
 
                                     -- update the character button set name
                                     for curCharKey, curCharData in pairs(BMSettings:GetSettings().Characters) do
@@ -252,9 +262,11 @@ function BMHotbarClass:RenderTabs()
                                             for setIdx, oldSetName in ipairs(windowData.Sets) do
                                                 if oldSetName == set then
                                                     btnUtils.Output(string.format(
-                                                        "\awUpdating section '\ag%s\aw' renaming \am%s\aw => \at%s", curCharKey,
+                                                        "\awUpdating section '\ag%s\aw' renaming \am%s\aw => \at%s",
+                                                        curCharKey,
                                                         oldSetName, self.newSetName))
-                                                    BMSettings:GetSettings().Characters[curCharKey].Windows[windowIdx].Sets[setIdx] = self.newSetName
+                                                    BMSettings:GetSettings().Characters[curCharKey].Windows[windowIdx].Sets[setIdx] =
+                                                        self.newSetName
                                                 end
                                             end
                                         end
@@ -433,6 +445,14 @@ function BMHotbarClass:RenderTabContextMenu()
                     break
                 end
             end
+            for n, _ in pairs(BMSettings.Globals.CustomThemes or {}) do
+                local checked = (BMSettings:GetCharacterWindow(self.id).Theme or "") == n
+                if ImGui.MenuItem(n, nil, checked) then
+                    BMSettings:GetCharacterWindow(self.id).Theme = n
+                    BMSettings:SaveSettings(true)
+                    break
+                end
+            end
             ImGui.EndMenu()
         end
 
@@ -477,11 +497,13 @@ function BMHotbarClass:RenderTabContextMenu()
 
         if ImGui.BeginMenu("Display Settings") then
             if ImGui.MenuItem((BMSettings:GetCharacterWindow(self.id).HideTitleBar and "Show" or "Hide") .. " Title Bar") then
-                BMSettings:GetCharacterWindow(self.id).HideTitleBar = not BMSettings:GetCharacterWindow(self.id).HideTitleBar
+                BMSettings:GetCharacterWindow(self.id).HideTitleBar = not BMSettings:GetCharacterWindow(self.id)
+                    .HideTitleBar
                 BMSettings:SaveSettings(true)
             end
             if ImGui.MenuItem((BMSettings:GetCharacterWindow(self.id).CompactMode and "Normal" or "Compact") .. " Mode") then
-                BMSettings:GetCharacterWindow(self.id).CompactMode = not BMSettings:GetCharacterWindow(self.id).CompactMode
+                BMSettings:GetCharacterWindow(self.id).CompactMode = not BMSettings:GetCharacterWindow(self.id)
+                    .CompactMode
                 BMSettings:SaveSettings(true)
             end
             local fps_scale = {
@@ -687,7 +709,8 @@ function BMHotbarClass:RenderButtons(Set)
                     ---@diagnostic disable-next-line: undefined-field
                     local num = payload.Data;
                     -- swap the keys in the button set
-                    BMSettings:GetSettings().Sets[Set][num], BMSettings:GetSettings().Sets[Set][ButtonIndex] = BMSettings:GetSettings().Sets[Set][ButtonIndex],
+                    BMSettings:GetSettings().Sets[Set][num], BMSettings:GetSettings().Sets[Set][ButtonIndex] =
+                        BMSettings:GetSettings().Sets[Set][ButtonIndex],
                         BMSettings:GetSettings().Sets[Set][num]
                     BMSettings:SaveSettings(true)
                 end
