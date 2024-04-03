@@ -61,6 +61,8 @@ function BMHotbarClass.new(id, createFresh)
         BMSettings:SaveSettings(true)
     end
 
+    BMSettings:GetCharConfig().Windows[id].Sets = BMSettings:GetCharConfig().Windows[id].Sets or {}
+
     return newBMHotbar
 end
 
