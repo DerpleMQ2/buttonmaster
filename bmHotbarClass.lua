@@ -13,6 +13,7 @@ BMHotbarClass.__index               = BMHotbarClass
 BMHotbarClass.id                    = 1
 BMHotbarClass.openGUI               = true
 BMHotbarClass.shouldDrawGUI         = true
+BMHotbarClass.setupComplete         = false
 BMHotbarClass.lastWindowX           = 0
 BMHotbarClass.lastWindowY           = 0
 BMHotbarClass.lastButtonPageHeight  = 0
@@ -177,6 +178,8 @@ function BMHotbarClass:RenderHotbar(flags)
             btnUtils.Output("Hotbar %d hidden! Use `/btn %d` to bring it back.", self.id, self.id)
         end
     end
+
+    self.setupComplete = true
 end
 
 function BMHotbarClass:RenderTabs()
@@ -882,7 +885,7 @@ function BMHotbarClass:GiveTime()
 
     local config = BMSettings:GetCharacterWindow(self.id)
 
-    if config then
+    if config and self.setupComplete then
         if not config.Pos or (config.Pos.x ~= self.lastWindowX or config.Pos.y ~= self.lastWindowY) or config.Height ~= self.lastWindowHeight or config.Width ~= self.lastWindowWidth then
             config.Pos    = config.Pos or {}
             config.Pos.x  = self.lastWindowX

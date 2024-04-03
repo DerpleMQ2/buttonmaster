@@ -311,13 +311,25 @@ function ButtonUtils.deepcopy(obj, seen)
     return res
 end
 
+local function getCallStack()
+    local info = debug.getinfo(4, "Snl")
+
+    local callerTracer = string.format("\ao%s\aw::\ao%s()\aw:\ao%-04d\ax",
+        info and info.short_src and info.short_src:match("[^\\^/]*.lua$") or "unknown_file",
+        info and info.name or "unknown_func", info and info.currentline or 0)
+
+    return callerTracer
+end
+
 function ButtonUtils.Output(msg, ...)
+    local callerTracer = getCallStack()
+
     local formatted = msg
     if ... then
         formatted = string.format(msg, ...)
     end
 
-    printf('\aw[' .. mq.TLO.Time() .. '] [\aoButton Master\aw] ::\a-t %s', formatted)
+    printf('\aw[' .. mq.TLO.Time() .. '] <%s> [\aoButton Master\aw] ::\a-t %s', callerTracer, formatted)
 end
 
 function ButtonUtils.Debug(msg, ...)
