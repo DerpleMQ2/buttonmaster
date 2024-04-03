@@ -885,14 +885,16 @@ function BMHotbarClass:GiveTime()
 
     local config = BMSettings:GetCharacterWindow(self.id)
 
-    if config and self.setupComplete then
-        if not config.Pos or (config.Pos.x ~= self.lastWindowX or config.Pos.y ~= self.lastWindowY) or config.Height ~= self.lastWindowHeight or config.Width ~= self.lastWindowWidth then
-            config.Pos    = config.Pos or {}
-            config.Pos.x  = self.lastWindowX
-            config.Pos.y  = self.lastWindowY
-            config.Height = self.lastWindowHeight
-            config.Width  = self.lastWindowWidth
-            BMSettings:SaveSettings(true)
+    if config then
+        if self.setupComplete then -- wont have valid positions until the render loop has run once.
+            if not config.Pos or (config.Pos.x ~= self.lastWindowX or config.Pos.y ~= self.lastWindowY) or config.Height ~= self.lastWindowHeight or config.Width ~= self.lastWindowWidth then
+                config.Pos    = config.Pos or {}
+                config.Pos.x  = self.lastWindowX
+                config.Pos.y  = self.lastWindowY
+                config.Height = self.lastWindowHeight
+                config.Width  = self.lastWindowWidth
+                BMSettings:SaveSettings(true)
+            end
         end
     else
         btnUtils.Output("\ayError: No config found for bar: %d", self.id)
