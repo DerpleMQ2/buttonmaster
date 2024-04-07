@@ -38,6 +38,26 @@ local function BindBtn(num)
     end
 end
 
+function CopyLocalSet(key)
+    local newTable = btnUtils.deepcopy(BMSettings:GetSettings().Characters[key])
+    BMSettings:GetSettings().Characters[BMSettings.CharConfig] = newTable
+    BMSettings:SaveSettings(true)
+    BMUpdateSettings = true
+end
+
+local function BindBtnCopy(server, character)
+    if not server or not character then return end
+
+    local cname = character:sub(1, 1):upper() .. character:sub(2)
+    local key = server:lower() .. "_" .. cname
+    if not BMSettings:GetSettings().Characters[key] then
+        btnUtils.Output("\arError: \ayProfile: \at%s\ay not found!", key)
+        return
+    end
+
+    CopyLocalSet(key)
+end
+
 local function BindBtnExec(set, index)
     if not set or not index then
         btnUtils.Output("\agUsage\aw: \am/btnexec \aw<\at\"set\"\aw> \aw<\atindex\aw>")
@@ -182,5 +202,6 @@ end
 mq.imgui.init('ButtonGUI', ButtonGUI)
 mq.bind('/btn', BindBtn)
 mq.bind('/btnexec', BindBtnExec)
+mq.bind('/btncopy', BindBtnCopy)
 
 GiveTime()

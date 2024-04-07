@@ -489,10 +489,7 @@ function BMHotbarClass:RenderTabContextMenu()
             table.sort(charList, function(a, b) return a.key < b.key end)
             for _, value in ipairs(charList) do
                 if ImGui.MenuItem(value.displayName) then
-                    local newTable = btnUtils.deepcopy(BMSettings:GetSettings().Characters[value.key])
-                    BMSettings:GetSettings().Characters[BMSettings.CharConfig] = newTable
-                    BMSettings:SaveSettings(true)
-                    BMUpdateSettings = true
+                    CopyLocalSet(value.key)
                 end
             end
             ImGui.EndMenu()
@@ -888,7 +885,7 @@ function BMHotbarClass:GiveTime()
     local config = BMSettings:GetCharacterWindow(self.id)
 
     if config then
-        if self.setupComplete then -- wont have valid positions until the render loop has run once.
+        if self.setupComplete and not BMUpdateSettings then -- wont have valid positions until the render loop has run once.
             if not config.Pos or (config.Pos.x ~= self.lastWindowX or config.Pos.y ~= self.lastWindowY) or config.Height ~= self.lastWindowHeight or config.Width ~= self.lastWindowWidth then
                 config.Pos    = config.Pos or {}
                 config.Pos.x  = self.lastWindowX
