@@ -146,16 +146,23 @@ function BMHotbarClass:RenderHotbar(flags)
                         elseif t['Dynamic_Var'] then
                             local ret, var = btnUtils.EvaluateLua(t['Dynamic_Var'])
                             if ret then
-                                ---@diagnostic disable-next-line: param-type-mismatch
-                                ImGui.PushStyleVar(ImGuiStyleVar[n], var)
+                                if type(var) == 'table' then
+                                    ---@diagnostic disable-next-line: param-type-mismatch, deprecated
+                                    ImGui.PushStyleVar(ImGuiStyleVar[n], unpack(var))
+                                else
+                                    ---@diagnostic disable-next-line: param-type-mismatch
+                                    ImGui.PushStyleVar(ImGuiStyleVar[n], var)
+                                end
                                 themeStylePop = themeStylePop + 1
                             end
                         elseif #t == 4 then
                             local colors = btnUtils.shallowcopy(t)
                             for i = 1, 4 do
                                 if type(colors[i]) == 'string' then
-                                    _, colors[i] = btnUtils.EvaluateLua(colors[i])
-                                    --btnUtils.Output(colors[i])
+                                    local ret, color = btnUtils.EvaluateLua(colors[i])
+                                    if ret then
+                                        colors[i] = color
+                                    end
                                 end
                             end
                             ---@diagnostic disable-next-line: param-type-mismatch, deprecated
