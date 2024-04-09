@@ -8,6 +8,7 @@ ButtonUtils.enableDebug = false
 function ButtonUtils.PCallString(str)
     local func, err = load(str)
     if not func then
+        ButtonUtils.Output(err)
         return false, err
     end
 

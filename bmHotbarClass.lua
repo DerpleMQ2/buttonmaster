@@ -136,10 +136,33 @@ function BMHotbarClass:RenderHotbar(flags)
                     themeStylePop = themeStylePop + 1
                 else
                     if type(t) == 'table' then
-                        if #t == 4 then
-                            ImGui.PushStyleColor(ImGuiCol[n], unpack(t))
+                        if t['Dynamic_Color'] then
+                            local ret, colors = btnUtils.EvaluateLua(t['Dynamic_Color'])
+                            if ret then
+                                ---@diagnostic disable-next-line: param-type-mismatch
+                                ImGui.PushStyleColor(ImGuiCol[n], colors)
+                                themeColorPop = themeColorPop + 1
+                            end
+                        elseif t['Dynamic_Var'] then
+                            local ret, var = btnUtils.EvaluateLua(t['Dynamic_Var'])
+                            if ret then
+                                ---@diagnostic disable-next-line: param-type-mismatch
+                                ImGui.PushStyleVar(ImGuiStyleVar[n], var)
+                                themeStylePop = themeStylePop + 1
+                            end
+                        elseif #t == 4 then
+                            local colors = btnUtils.shallowcopy(t)
+                            for i = 1, 4 do
+                                if type(colors[i]) == 'string' then
+                                    _, colors[i] = btnUtils.EvaluateLua(colors[i])
+                                    --btnUtils.Output(colors[i])
+                                end
+                            end
+                            ---@diagnostic disable-next-line: param-type-mismatch, deprecated
+                            ImGui.PushStyleColor(ImGuiCol[n], unpack(colors))
                             themeColorPop = themeColorPop + 1
                         else
+                            ---@diagnostic disable-next-line: param-type-mismatch, deprecated
                             ImGui.PushStyleVar(ImGuiStyleVar[n], unpack(t))
                             themeStylePop = themeStylePop + 1
                         end
