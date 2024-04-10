@@ -1,34 +1,30 @@
-local mq                           = require('mq')
-local btnUtils                     = require('lib.buttonUtils')
-local BMButtonHandlers             = require('bmButtonHandlers')
-local themes                       = require('extras.themes')
+local mq                            = require('mq')
+local btnUtils                      = require('lib.buttonUtils')
+local BMButtonHandlers              = require('bmButtonHandlers')
+local themes                        = require('extras.themes')
 
-local WINDOW_SETTINGS_ICON_SIZE    = 22
+local WINDOW_SETTINGS_ICON_SIZE     = 22
 
-local editTabPopup                 = "edit_tab_popup"
+local editTabPopup                  = "edit_tab_popup"
 
 ---@class BMHotbarClass
-local BMHotbarClass                = {}
-BMHotbarClass.__index              = BMHotbarClass
-BMHotbarClass.id                   = 1
-BMHotbarClass.openGUI              = true
-BMHotbarClass.shouldDrawGUI        = true
-BMHotbarClass.setupComplete        = false
-BMHotbarClass.lastWindowX          = 0
-BMHotbarClass.lastWindowY          = 0
-BMHotbarClass.lastButtonPageHeight = 0
-BMHotbarClass.lastButtonPageWidth  = 0
-BMHotbarClass.lastWindowHeight     = 0
-BMHotbarClass.lastWindowWidth      = 0
-BMHotbarClass.buttonSizeDirty      = false
-BMHotbarClass.visibleButtonCount   = 0
-BMHotbarClass.cachedCols           = 0
-BMHotbarClass.cachedRows           = 0
-BMHotbarClass.highestRenderTime    = 0
-
-BMHotbarClass.themeColorPop        = 0
-BMHotbarClass.themeStylePop        = 0
-
+local BMHotbarClass                 = {}
+BMHotbarClass.__index               = BMHotbarClass
+BMHotbarClass.id                    = 1
+BMHotbarClass.openGUI               = true
+BMHotbarClass.shouldDrawGUI         = true
+BMHotbarClass.setupComplete         = false
+BMHotbarClass.lastWindowX           = 0
+BMHotbarClass.lastWindowY           = 0
+BMHotbarClass.lastButtonPageHeight  = 0
+BMHotbarClass.lastButtonPageWidth   = 0
+BMHotbarClass.lastWindowHeight      = 0
+BMHotbarClass.lastWindowWidth       = 0
+BMHotbarClass.buttonSizeDirty       = false
+BMHotbarClass.visibleButtonCount    = 0
+BMHotbarClass.cachedCols            = 0
+BMHotbarClass.cachedRows            = 0
+BMHotbarClass.highestRenderTime     = 0
 
 BMHotbarClass.importObjectPopupOpen = false
 
@@ -86,6 +82,7 @@ function BMHotbarClass:IsVisible()
     return BMSettings:GetCharacterWindow(self.id).Visible
 end
 
+---@return integer, integer
 function BMHotbarClass:StartTheme()
     local theme = BMSettings:GetSettings().Themes and BMSettings:GetSettings().Themes[self.id] or nil
 
@@ -98,17 +95,17 @@ function BMHotbarClass:StartTheme()
         theme = themes[BMSettings:GetCharacterWindow(self.id).Theme or ""] or nil
     end
 
-    self.themeColorPop = 0
-    self.themeStylePop = 0
+    local themeColorPop = 0
+    local themeStylePop = 0
 
     if theme ~= nil then
         for n, t in pairs(theme) do
             if t.color then
                 ImGui.PushStyleColor(ImGuiCol[t.element], t.color.r, t.color.g, t.color.b, t.color.a)
-                self.themeColorPop = self.themeColorPop + 1
+                themeColorPop = themeColorPop + 1
             elseif t.stylevar then
                 ImGui.PushStyleVar(ImGuiStyleVar[t.stylevar], t.value)
-                self.themeStylePop = self.themeStylePop + 1
+                themeStylePop = themeStylePop + 1
             else
                 if type(t) == 'table' then
                     if t['Dynamic_Color'] then
@@ -116,7 +113,7 @@ function BMHotbarClass:StartTheme()
                         if ret then
                             ---@diagnostic disable-next-line: param-type-mismatch
                             ImGui.PushStyleColor(ImGuiCol[n], colors)
-                            self.themeColorPop = self.themeColorPop + 1
+                            themeColorPop = themeColorPop + 1
                         end
                     elseif t['Dynamic_Var'] then
                         local ret, var = btnUtils.EvaluateLua(t['Dynamic_Var'])
@@ -128,7 +125,7 @@ function BMHotbarClass:StartTheme()
                                 ---@diagnostic disable-next-line: param-type-mismatch
                                 ImGui.PushStyleVar(ImGuiStyleVar[n], var)
                             end
-                            self.themeStylePop = self.themeStylePop + 1
+                            themeStylePop = themeStylePop + 1
                         end
                     elseif #t == 4 then
                         local colors = btnUtils.shallowcopy(t)
@@ -142,24 +139,28 @@ function BMHotbarClass:StartTheme()
                         end
                         ---@diagnostic disable-next-line: param-type-mismatch, deprecated
                         ImGui.PushStyleColor(ImGuiCol[n], unpack(colors))
-                        self.themeColorPop = self.themeColorPop + 1
+                        themeColorPop = themeColorPop + 1
                     else
                         ---@diagnostic disable-next-line: param-type-mismatch, deprecated
                         ImGui.PushStyleVar(ImGuiStyleVar[n], unpack(t))
-                        self.themeStylePop = self.themeStylePop + 1
+                        themeStylePop = themeStylePop + 1
                     end
                 end
             end
         end
     end
+
+    return themeColorPop, themeStylePop
 end
 
-function BMHotbarClass:EndTheme()
-    if self.themeColorPop > 0 then
-        ImGui.PopStyleColor(self.themeColorPop)
+---@param themeColorPop integer
+---@param themeStylePop integer
+function BMHotbarClass:EndTheme(themeColorPop, themeStylePop)
+    if themeColorPop > 0 then
+        ImGui.PopStyleColor(themeColorPop)
     end
-    if self.themeStylePop > 0 then
-        ImGui.PopStyleVar(self.themeStylePop)
+    if themeStylePop > 0 then
+        ImGui.PopStyleVar(themeStylePop)
     end
 end
 
@@ -179,7 +180,7 @@ function BMHotbarClass:RenderHotbar(flags)
         self.lastWindowY          = self.newY
     end
 
-    self:StartTheme()
+    local colorPop, stylePop = self:StartTheme()
     ImGui.PushID("##MainWindow_" .. tostring(self.id))
     self.openGUI, self.shouldDrawGUI = ImGui.Begin(string.format('Button Master - %d', self.id), self.openGUI,
         bit32.bor(flags))
@@ -193,8 +194,6 @@ function BMHotbarClass:RenderHotbar(flags)
     if self.openGUI and self.shouldDrawGUI then
         local startTimeMS = os.clock() * 1000
         local cursorScreenPos = ImGui.GetCursorScreenPosVec()
-
-
 
         self:RenderTabs()
 
@@ -215,7 +214,7 @@ function BMHotbarClass:RenderHotbar(flags)
     ImGui.End()
     ImGui.PopID()
 
-    self:EndTheme()
+    self:EndTheme(colorPop, stylePop)
 
     if self.openGUI ~= self:IsVisible() then
         self:SetVisible(self.openGUI)
