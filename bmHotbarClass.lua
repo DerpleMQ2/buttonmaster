@@ -261,7 +261,7 @@ function BMHotbarClass:RenderTabs()
 
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, 0, 0)
         ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, 0, 0)
-        ImGui.BeginChild("##buttons_child", nil, nil, bit32.bor(ImGuiWindowFlags.AlwaysAutoResize))
+        ImGui.BeginChild("##buttons_child", nil, nil, bit32.bor(ImGuiChildFlags.AlwaysAutoResize, ImGuiChildFlags.AutoResizeY))
 
         if BMSettings:GetCharacterWindowSets(self.id)[1] ~= nil then
             self:RenderButtons(BMSettings:GetCharacterWindowSets(self.id)[1])
