@@ -730,10 +730,14 @@ function BMHotbarClass:RenderButtons(Set)
         local clicked = false
 
         local buttonID = string.format("##Button_%s_%d", Set, ButtonIndex)
+        local showLabel = true
+        local btnKey = BMSettings:GetButtonSectionKeyBySetIndex(Set, ButtonIndex)
+        if BMSettings.settings.Buttons[btnKey] ~= nil then
+            showLabel = BMSettings.settings.Buttons[btnKey].ShowLabel
+        end
         ImGui.PushID(buttonID)
-        clicked = BMButtonHandlers.Render(button, btnSize, true, (BMSettings:GetCharacterWindow(self.id).Font or 10) / 10)
+        clicked = BMButtonHandlers.Render(button, btnSize, showLabel, (BMSettings:GetCharacterWindow(self.id).Font or 10) / 10)
         ImGui.PopID()
-
         -- TODO Move this to button config class and out of the UI thread.
         if clicked then
             if button.Unassigned then

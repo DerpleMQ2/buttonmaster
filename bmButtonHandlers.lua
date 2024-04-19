@@ -271,7 +271,7 @@ end
 ---@param fontScale number # Font scale for text
 ---@return boolean # clicked
 function BMButtonHandlers.Render(Button, size, renderLabel, fontScale)
-    local evaluatedLabel = renderLabel and BMButtonHandlers.ResolveButtonLabel(Button) or ""
+    local evaluatedLabel = BMButtonHandlers.ResolveButtonLabel(Button) or ""
     local clicked = false
     local startTimeMS = os.clock() * 1000
     local cursorScreenPos = ImGui.GetCursorScreenPosVec()
@@ -285,12 +285,13 @@ function BMButtonHandlers.Render(Button, size, renderLabel, fontScale)
     BMButtonHandlers.RenderButtonCooldown(Button, cursorScreenPos, size)
 
     -- label and tooltip
+    ImGui.SetWindowFontScale(fontScale)
     if renderLabel then
-        ImGui.SetWindowFontScale(fontScale)
         BMButtonHandlers.RenderButtonLabel(Button, cursorScreenPos, size, evaluatedLabel)
-        BMButtonHandlers.RenderButtonTooltip(Button, evaluatedLabel)
-        ImGui.SetWindowFontScale(1)
     end
+    BMButtonHandlers.RenderButtonTooltip(Button, evaluatedLabel)
+    ImGui.SetWindowFontScale(1)
+
 
     local endTimeMS = os.clock() * 1000
 
