@@ -732,7 +732,7 @@ function BMHotbarClass:RenderButtons(Set)
         local buttonID = string.format("##Button_%s_%d", Set, ButtonIndex)
         local showLabel = true
         local btnKey = BMSettings:GetButtonSectionKeyBySetIndex(Set, ButtonIndex)
-        if BMSettings.settings.Buttons[btnKey] ~= nil then
+        if BMSettings.settings.Buttons[btnKey] ~= nil and BMSettings.settings.Buttons[btnKey].ShowLabel ~= nil then
             showLabel = BMSettings.settings.Buttons[btnKey].ShowLabel
         end
         ImGui.PushID(buttonID)
