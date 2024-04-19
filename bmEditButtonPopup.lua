@@ -206,10 +206,11 @@ function BMButtonEditor:RenderButtonEditUI(renderButton, enableShare, enableEdit
         renderButton.IconType = picker.SelectedType
         picker:ClearSelection()
     end
-
+    -- default to show label.
+    if renderButton.ShowLabel == nil then renderButton.ShowLabel = true end
+    
     if renderButton.Icon ~= nil then
         ImGui.SameLine()
-        if renderButton.ShowLabel == nil then renderButton.ShowLabel = true end
         renderButton.ShowLabel = ImGui.Checkbox("Show Button Label", renderButton.ShowLabel)
     end
 
