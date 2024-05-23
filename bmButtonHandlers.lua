@@ -259,10 +259,9 @@ function BMButtonHandlers.ResolveButtonLabel(Button, leaveSpaces, cacheUpdate)
 end
 
 function BMButtonHandlers.CalcButtonTextPos(Button, size)
-    local label_x, label_y = ImGui.CalcTextSize(Button.CachedLabel)
+    local label_x, label_y = ImGui.CalcTextSize(BMButtonHandlers.ResolveButtonLabel(Button, false))
     local midX, midY = math.max(math.floor((size - label_x) / 2), 0), math.floor((size - label_y) / 2)
     if midX ~= Button.labelMidX or midY ~= Button.labelMidY then
-        btnUtils.Debug("New Label Pos for %s : %d %d was %d %d", Button.CachedLabel:gsub("\n", " "), midX, midY, Button.labelMidX or -1, Button.labelMidY or -1)
         Button.labelMidX, Button.labelMidY = midX, midY
     end
 end
@@ -303,6 +302,7 @@ function BMButtonHandlers.Render(Button, size, renderLabel, fontScale)
         if Button.highestRenderTime == nil or renderTimeMS > Button.highestRenderTime then Button.highestRenderTime = renderTimeMS end
         ImGui.SetWindowFontScale(0.8)
         BMButtonHandlers.RenderButtonDebugText(cursorScreenPos, tostring(Button.highestRenderTime))
+        BMButtonHandlers.RenderButtonDebugText(ImVec2(cursorScreenPos.x, cursorScreenPos.y + 10), string.format("%d,%d", Button.labelMidX, Button.labelMidY))
         ImGui.SetWindowFontScale(1)
     end
 

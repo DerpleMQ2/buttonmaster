@@ -349,6 +349,12 @@ function BMSettings:ConvertToLatestConfigVersion()
     end
 end
 
+function BMSettings:InvalidateButtonCache()
+    for _, button in pairs(self.settings.Buttons) do
+        button.CachedLabel = nil
+    end
+end
+
 function BMSettings:LoadSettings()
     local config, err = loadfile(settings_path)
     if err or not config then
@@ -403,6 +409,7 @@ function BMSettings:LoadSettings()
     self.settings.Characters[self.CharConfig].Windows = self.settings.Characters[self.CharConfig].Windows or
         { [1] = { Visible = true, Pos = { x = 10, y = 10, }, Sets = {}, Locked = false, }, }
 
+    self:InvalidateButtonCache()
     return true
 end
 
