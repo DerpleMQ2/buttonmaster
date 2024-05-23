@@ -239,7 +239,9 @@ end
 ---@param Button table # BMButtonConfig
 ---@param leaveSpaces boolean? # leave spaces or replace with new line.
 function BMButtonHandlers.ResolveButtonLabel(Button, leaveSpaces, cacheUpdate)
-    if not cacheUpdate and Button.CachedLabel ~= nil then return Button.CachedLabel end
+    if not cacheUpdate and Button.CachedLabel ~= nil then
+        return leaveSpaces and Button.CachedLabel or Button.CachedLabel:gsub(" ", "\n")
+    end
     local success = true
     local evaluatedLabel = Button.Label
 
@@ -251,9 +253,9 @@ function BMButtonHandlers.ResolveButtonLabel(Button, leaveSpaces, cacheUpdate)
     end
     evaluatedLabel = tostring(evaluatedLabel)
 
-    Button.CachedLabel = leaveSpaces and evaluatedLabel or evaluatedLabel:gsub(" ", "\n")
+    Button.CachedLabel = evaluatedLabel
 
-    return Button.CachedLabel
+    return Button.CachedLabel --leaveSpaces and Button.CachedLabel or Button.CachedLabel:gsub(" ", "\n")
 end
 
 function BMButtonHandlers.CalcButtonTextPos(Button, size)
