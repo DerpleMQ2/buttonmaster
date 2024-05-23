@@ -255,7 +255,7 @@ function BMButtonHandlers.ResolveButtonLabel(Button, leaveSpaces, cacheUpdate)
 
     Button.CachedLabel = evaluatedLabel
 
-    return Button.CachedLabel --leaveSpaces and Button.CachedLabel or Button.CachedLabel:gsub(" ", "\n")
+    return leaveSpaces and Button.CachedLabel or Button.CachedLabel:gsub(" ", "\n")
 end
 
 function BMButtonHandlers.CalcButtonTextPos(Button, size)
