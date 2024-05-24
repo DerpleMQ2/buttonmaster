@@ -47,7 +47,7 @@ function IconPicker:renderItemIcon(id)
     if ImGui.InvisibleButton(tostring(id), ImVec2(IconSize, IconSize)) then
         self.Selected = id
     end
-    btnUtils.Tooltip(string.format("Icon ID: %d", id))
+    btnUtils.Tooltip(string.format("Icon ID: %d", id + 500))
     ImGui.PopID()
 end
 
