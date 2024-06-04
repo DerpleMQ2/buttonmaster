@@ -192,7 +192,8 @@ end
 
 ---@param Button table # BMButtonConfig
 ---@param label string
-function BMButtonHandlers.RenderButtonTooltip(Button, label)
+---@param subText string?
+function BMButtonHandlers.RenderButtonTooltip(Button, label, subText)
     -- hover tooltip
     if Button.Unassigned == nil and ImGui.IsItemHovered() then
         local tooltipText = label
@@ -206,6 +207,10 @@ function BMButtonHandlers.RenderButtonTooltip(Button, label)
 
             ImGui.BeginTooltip()
             ImGui.Text(tooltipText)
+            if subText then
+                ImGui.Separator()
+                ImGui.Text(subText)
+            end
             ImGui.EndTooltip()
         end
     end
@@ -270,8 +275,9 @@ end
 ---@param size number # size to render the button as
 ---@param renderLabel boolean # render the label on top or not
 ---@param fontScale number # Font scale for text
+---@param advTooltips boolean # enable advanced tooltips6
 ---@return boolean # clicked
-function BMButtonHandlers.Render(Button, size, renderLabel, fontScale)
+function BMButtonHandlers.Render(Button, size, renderLabel, fontScale, advTooltips)
     local evaluatedLabel = BMButtonHandlers.ResolveButtonLabel(Button) or ""
     local clicked = false
     local startTimeMS = os.clock() * 1000
@@ -290,7 +296,7 @@ function BMButtonHandlers.Render(Button, size, renderLabel, fontScale)
     if renderLabel then
         BMButtonHandlers.RenderButtonLabel(Button, cursorScreenPos, size, evaluatedLabel)
     end
-    BMButtonHandlers.RenderButtonTooltip(Button, evaluatedLabel)
+    BMButtonHandlers.RenderButtonTooltip(Button, evaluatedLabel, advTooltips and (Button.Cmd or nil) or nil)
     ImGui.SetWindowFontScale(1)
 
 

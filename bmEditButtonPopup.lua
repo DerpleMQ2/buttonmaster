@@ -208,7 +208,7 @@ function BMButtonEditor:RenderButtonEditUI(renderButton, enableShare, enableEdit
     end
     -- default to show label.
     if renderButton.ShowLabel == nil then renderButton.ShowLabel = true end
-    
+
     if renderButton.Icon ~= nil then
         ImGui.SameLine()
         renderButton.ShowLabel = ImGui.Checkbox("Show Button Label", renderButton.ShowLabel)
@@ -314,7 +314,7 @@ function BMButtonEditor:RenderIconPicker(renderButton)
     if renderButton.Icon then
         local objectID = string.format("##IconPicker_%s_%d", self.editButtonSet, self.editButtonIndex)
         ImGui.PushID(objectID)
-        if BMButtonHandlers.Render(renderButton, 20, false, 1) then
+        if BMButtonHandlers.Render(renderButton, 20, false, 1, false) then
             picker:SetOpen()
         end
         ImGui.PopID()

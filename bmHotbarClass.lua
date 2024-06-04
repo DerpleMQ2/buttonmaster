@@ -49,7 +49,7 @@ function BMHotbarClass.new(id, createFresh)
     local newBMHotbar = setmetatable({ id = id, }, BMHotbarClass)
 
     if createFresh then
-        BMSettings:GetCharConfig().Windows[id] = { Visible = true, Sets = {}, Locked = false, HideTitleBar = false, CompactMode = false, }
+        BMSettings:GetCharConfig().Windows[id] = { Visible = true, Sets = {}, Locked = false, HideTitleBar = false, CompactMode = false, AdvTooltips = true, }
 
         -- if this character doesn't have the sections in the config, create them
         newBMHotbar.updateWindowPosSize = true
@@ -551,6 +551,11 @@ function BMHotbarClass:RenderTabContextMenu()
                     .CompactMode
                 BMSettings:SaveSettings(true)
             end
+            if ImGui.MenuItem((BMSettings:GetCharacterWindow(self.id).AdvTooltips and "Disable" or "Enable") .. " Advanced Tooltips") then
+                BMSettings:GetCharacterWindow(self.id).AdvTooltips = not BMSettings:GetCharacterWindow(self.id)
+                    .AdvTooltips
+                BMSettings:SaveSettings(true)
+            end
             local fps_scale = {
                 {
                     label = "Instant",
@@ -736,7 +741,8 @@ function BMHotbarClass:RenderButtons(Set)
             showLabel = BMSettings.settings.Buttons[btnKey].ShowLabel
         end
         ImGui.PushID(buttonID)
-        clicked = BMButtonHandlers.Render(button, btnSize, showLabel, (BMSettings:GetCharacterWindow(self.id).Font or 10) / 10)
+        clicked = BMButtonHandlers.Render(button, btnSize, showLabel, (BMSettings:GetCharacterWindow(self.id).Font or 10) / 10,
+            BMSettings:GetCharacterWindow(self.id).AdvTooltips or true)
         ImGui.PopID()
         -- TODO Move this to button config class and out of the UI thread.
         if clicked then
