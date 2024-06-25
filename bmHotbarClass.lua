@@ -742,7 +742,7 @@ function BMHotbarClass:RenderButtons(Set)
         end
         ImGui.PushID(buttonID)
         clicked = BMButtonHandlers.Render(button, btnSize, showLabel, (BMSettings:GetCharacterWindow(self.id).Font or 10) / 10,
-            BMSettings:GetCharacterWindow(self.id).AdvTooltips or true)
+            BMSettings:GetCharacterWindow(self.id).AdvTooltips)
         ImGui.PopID()
         -- TODO Move this to button config class and out of the UI thread.
         if clicked then
