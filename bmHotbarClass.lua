@@ -45,6 +45,9 @@ BMHotbarClass.newHeight             = 0
 BMHotbarClass.newX                  = 0
 BMHotbarClass.newY                  = 0
 
+local LockWindowPosX = 0
+local LockWindowPosY = 0
+
 function BMHotbarClass.new(id, createFresh)
     local newBMHotbar = setmetatable({ id = id, }, BMHotbarClass)
 
@@ -243,8 +246,11 @@ function BMHotbarClass:RenderTabs()
         if ImGui.Button(lockedIcon, settingsIconSize, settingsIconSize) then
             --ImGuiWindowFlags.NoMove
             BMSettings:GetCharacterWindow(self.id).Locked = not BMSettings:GetCharacterWindow(self.id).Locked
+            LockWindowPosX, LockWindowPosY = ImGui.GetWindowPos()
+            BMSettings:GetCharacterWindow(self.id).LockWindowPosX = LockWindowPosX
+            BMSettings:GetCharacterWindow(self.id).LockWindowPosY = LockWindowPosY
             BMSettings:SaveSettings(true)
-        end
+        end        
 
         ImGui.SetCursorPosY(ImGui.GetCursorPosY() + (iconPadding))
         ImGui.Button(Icons.MD_SETTINGS, settingsIconSize, settingsIconSize)
@@ -273,6 +279,9 @@ function BMHotbarClass:RenderTabs()
         if ImGui.Button(lockedIcon, WINDOW_SETTINGS_ICON_SIZE, WINDOW_SETTINGS_ICON_SIZE) then
             --ImGuiWindowFlags.NoMove
             BMSettings:GetCharacterWindow(self.id).Locked = not BMSettings:GetCharacterWindow(self.id).Locked
+            LockWindowPosX, LockWindowPosY = ImGui.GetWindowPos()
+            BMSettings:GetCharacterWindow(self.id).LockWindowPosX = LockWindowPosX
+            BMSettings:GetCharacterWindow(self.id).LockWindowPosY = LockWindowPosY
             BMSettings:SaveSettings(true)
         end
 
@@ -338,6 +347,10 @@ function BMHotbarClass:RenderTabs()
             ImGui.Text(string.format("No Sets Added! Add one by right-clicking on %s", Icons.MD_SETTINGS))
         end
         ImGui.EndTabBar()
+    end
+
+    if BMSettings:GetCharacterWindow(self.id).Locked then
+        ImGui.SetWindowPos(BMSettings:GetCharacterWindow(self.id).LockWindowPosX, BMSettings:GetCharacterWindow(self.id).LockWindowPosY)
     end
 end
 
