@@ -100,7 +100,7 @@ function BMButtonEditor:RenderEditButtonPopup()
         self:RenderButtonEditUI(self.tmpButton, true, true)
 
         -- save button
-        if ImGui.Button("Save") then
+        if ImGui.Button("Save") or (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows) and (ImGui.IsKeyPressed(ImGuiMod.Ctrl) and ImGui.IsKeyPressed(ImGuiKey.S))) then
             -- make sure the button label isn't nil/empty/spaces
             if self.tmpButton.Label ~= nil and self.tmpButton.Label:gsub("%s+", ""):len() > 0 then
                 BMSettings:GetSettings().Sets[self.editButtonSet][self.editButtonIndex] =
@@ -130,21 +130,7 @@ function BMButtonEditor:RenderEditButtonPopup()
         end
 
     end
-    if ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows)  then
-        if ImGui.IsKeyPressed(ImGuiMod.Ctrl) and ImGui.IsKeyPressed(ImGuiKey.S) then
-            if self.tmpButton.Label ~= nil and self.tmpButton.Label:gsub("%s+", ""):len() > 0 then
-                BMSettings:GetSettings().Sets[self.editButtonSet][self.editButtonIndex] =
-                    ButtonKey                                                                      -- add the button key for this button set index
-                BMSettings:GetSettings().Buttons[ButtonKey] = btnUtils.shallowcopy(self.tmpButton) -- store the tmp button into the settings table
-                BMSettings:GetSettings().Buttons[ButtonKey].Unassigned = nil                       -- clear the unassigned flag
-    
-                BMSettings:SaveSettings(true)
-                self.editButtonUIChanged = false
-            else
-                btnUtils.Output("\arSave failed.  Button Label cannot be empty.")
-            end
-        end
-    end
+
     ImGui.PopID()
     ImGui.End()
 end
