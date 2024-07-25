@@ -34,7 +34,6 @@ function BMButtonEditor:RenderEditButtonPopup()
 
     if self.editButtonPopupOpen and shouldDrawEditPopup then
         -- shallow copy original button incase we want to reset (close)
-
         if self.editButtonUseCursor then
             self.editButtonUseCursor = false
             if mq.TLO.CursorAttachment and mq.TLO.CursorAttachment.Type() then
@@ -101,7 +100,7 @@ function BMButtonEditor:RenderEditButtonPopup()
         self:RenderButtonEditUI(self.tmpButton, true, true)
 
         -- save button
-        if ImGui.Button("Save") then
+        if ImGui.Button("Save") or (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows) and (ImGui.IsKeyPressed(ImGuiMod.Ctrl) and ImGui.IsKeyPressed(ImGuiKey.S))) then
             -- make sure the button label isn't nil/empty/spaces
             if self.tmpButton.Label ~= nil and self.tmpButton.Label:gsub("%s+", ""):len() > 0 then
                 BMSettings:GetSettings().Sets[self.editButtonSet][self.editButtonIndex] =
@@ -129,6 +128,7 @@ function BMButtonEditor:RenderEditButtonPopup()
             picker:SetClosed()
             self:CloseEditPopup()
         end
+
     end
 
     ImGui.PopID()
