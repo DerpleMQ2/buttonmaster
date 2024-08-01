@@ -114,7 +114,7 @@ function BMSettings:GetCharConfig()
 end
 
 function BMSettings:GetButtonSectionKeyBySetIndex(Set, Index)
-    local key = self.settings.Sets[Set][Index]
+    local key = self.settings.Sets[Set] and self.settings.Sets[Set][Index] or nil
 
     -- if the key doesn't exist, get the current button counter and add 1
     if key == nil then
