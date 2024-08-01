@@ -114,7 +114,13 @@ function BMSettings:GetCharConfig()
 end
 
 function BMSettings:GetButtonSectionKeyBySetIndex(Set, Index)
-    local key = self.settings.Sets[Set] and self.settings.Sets[Set][Index] or nil
+    -- somehow an invalid set exists. Just make it empty.
+    if not self.settings.Sets[Set] then
+        self.settings.Sets[Set] = {}
+        btnUtils.Debug("Set: %s does not exist. Creating it.", Set)
+    end
+
+    local key = self.settings.Sets[Set][Index]
 
     -- if the key doesn't exist, get the current button counter and add 1
     if key == nil then
