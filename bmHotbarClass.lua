@@ -485,8 +485,13 @@ function BMHotbarClass:RenderTabContextMenu()
         end
 
         if ImGui.BeginMenu("Set Theme") then
+            local checked = BMSettings:GetCharacterWindow(self.id).Theme == nil
+            if ImGui.MenuItem("Default", nil, checked) then
+                BMSettings:GetCharacterWindow(self.id).Theme = nil
+                BMSettings:SaveSettings(true)
+            end
             for n, _ in pairs(themes) do
-                local checked = (BMSettings:GetCharacterWindow(self.id).Theme or "") == n
+                checked = (BMSettings:GetCharacterWindow(self.id).Theme or "") == n
                 if ImGui.MenuItem(n, nil, checked) then
                     BMSettings:GetCharacterWindow(self.id).Theme = n
                     BMSettings:SaveSettings(true)
@@ -494,7 +499,7 @@ function BMHotbarClass:RenderTabContextMenu()
                 end
             end
             for n, _ in pairs(BMSettings.Globals.CustomThemes or {}) do
-                local checked = (BMSettings:GetCharacterWindow(self.id).Theme or "") == n
+                checked = (BMSettings:GetCharacterWindow(self.id).Theme or "") == n
                 if ImGui.MenuItem(n, nil, checked) then
                     BMSettings:GetCharacterWindow(self.id).Theme = n
                     BMSettings:SaveSettings(true)
