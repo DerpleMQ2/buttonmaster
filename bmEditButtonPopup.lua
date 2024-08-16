@@ -43,7 +43,7 @@ function BMButtonEditor:RenderEditButtonPopup()
                 if attachmentType == "item" or attachmentType == "item_link" then
                     self.tmpButton.Label = mq.TLO.CursorAttachment.Item()
                     self.tmpButton.Cmd = string.format("/useitem \"%s\"", mq.TLO.CursorAttachment.Item())
-                    self.tmpButton.Icon = tostring(mq.TLO.CursorAttachment.Item.Icon() - 500)
+                    self.tmpButton.Icon = tostring((mq.TLO.CursorAttachment.Item.Icon() or 500) - 500)
                     self.tmpButton.IconType = "Item"
                     self.tmpButton.Cooldown = mq.TLO.CursorAttachment.Item()
                     self.tmpButton.TimerType = "Item"
