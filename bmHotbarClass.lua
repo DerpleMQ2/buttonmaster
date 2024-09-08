@@ -45,11 +45,13 @@ BMHotbarClass.newHeight             = 0
 BMHotbarClass.newX                  = 0
 BMHotbarClass.newY                  = 0
 
+BMHotbarClass.searchText            = ""
+
 function BMHotbarClass.new(id, createFresh)
     local newBMHotbar = setmetatable({ id = id, }, BMHotbarClass)
 
     if createFresh then
-        BMSettings:GetCharConfig().Windows[id] = { Visible = true, Sets = {}, Locked = false, HideTitleBar = false, CompactMode = false, AdvTooltips = true, }
+        BMSettings:GetCharConfig().Windows[id] = { Visible = true, Sets = {}, Locked = false, HideTitleBar = false, CompactMode = false, AdvTooltips = true, ShowSearch = false, }
 
         -- if this character doesn't have the sections in the config, create them
         newBMHotbar.updateWindowPosSize = true
@@ -264,7 +266,7 @@ function BMHotbarClass:RenderTabs()
         ImGui.BeginChild("##buttons_child", nil, nil, bit32.bor(ImGuiChildFlags.AlwaysAutoResize, ImGuiChildFlags.AutoResizeY))
 
         if BMSettings:GetCharacterWindowSets(self.id)[1] ~= nil then
-            self:RenderButtons(BMSettings:GetCharacterWindowSets(self.id)[1])
+            self:RenderButtons(BMSettings:GetCharacterWindowSets(self.id)[1], "")
         end
 
         ImGui.EndChild()
@@ -328,8 +330,14 @@ function BMHotbarClass:RenderTabs()
                             end
                             ImGui.EndPopup()
                         end
-
-                        self:RenderButtons(SetLabel)
+                        if BMSettings:GetCharacterWindow(self.id).ShowSearch then
+                            ImGui.Text("Search")
+                            ImGui.SameLine()
+                            self.searchText = ImGui.InputText("##SearchText", self.searchText, ImGuiInputTextFlags.None)
+                        else
+                            self.searchText = ""
+                        end
+                        self:RenderButtons(SetLabel, self.searchText)
                         ImGui.EndTabItem()
                     end
                 end
@@ -561,6 +569,11 @@ function BMHotbarClass:RenderTabContextMenu()
                     .AdvTooltips
                 BMSettings:SaveSettings(true)
             end
+            if ImGui.MenuItem((BMSettings:GetCharacterWindow(self.id).ShowSearch and "Disable" or "Enable") .. " Search") then
+                BMSettings:GetCharacterWindow(self.id).ShowSearch = not BMSettings:GetCharacterWindow(self.id)
+                    .ShowSearch
+                BMSettings:SaveSettings(true)
+            end
             local fps_scale = {
                 {
                     label = "Instant",
@@ -724,7 +737,8 @@ function BMHotbarClass:RenderContextMenu(Set, Index, buttonID)
 end
 
 ---@param Set string
-function BMHotbarClass:RenderButtons(Set)
+---@param searchText string
+function BMHotbarClass:RenderButtons(Set, searchText)
     ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, ImVec2(4, 4))
     if ImGui.GetWindowWidth() ~= self.lastButtonPageWidth or ImGui.GetWindowHeight() ~= self.lastButtonPageHeight or self.buttonSizeDirty then
         self:RecalculateVisibleButtons(Set)
@@ -736,52 +750,62 @@ function BMHotbarClass:RenderButtons(Set)
 
     for ButtonIndex = 1, renderButtonCount do
         local button = BMSettings:GetButtonBySetIndex(Set, ButtonIndex)
+        local searchMatch = true
 
-        local clicked = false
-
-        local buttonID = string.format("##Button_%s_%d", Set, ButtonIndex)
-        local showLabel = true
-        local btnKey = BMSettings:GetButtonSectionKeyBySetIndex(Set, ButtonIndex)
-        if BMSettings.settings.Buttons[btnKey] ~= nil and BMSettings.settings.Buttons[btnKey].ShowLabel ~= nil then
-            showLabel = BMSettings.settings.Buttons[btnKey].ShowLabel
+        if searchText:len() > 0 then
+            searchMatch =
+                (button.CachedLabel or ""):lower():find(searchText:lower()) ~= nil
+                or
+                (button.Cmd or ""):lower():find(searchText:lower()) ~= nil
         end
-        ImGui.PushID(buttonID)
-        clicked = BMButtonHandlers.Render(button, btnSize, showLabel, (BMSettings:GetCharacterWindow(self.id).Font or 10) / 10,
-            BMSettings:GetCharacterWindow(self.id).AdvTooltips)
-        ImGui.PopID()
-        -- TODO Move this to button config class and out of the UI thread.
-        if clicked then
-            if button.Unassigned then
-                BMEditPopup:CreateButtonFromCursor(Set, ButtonIndex)
-            else
-                BMButtonHandlers.Exec(button)
+
+        if searchMatch then
+            local clicked = false
+
+            local buttonID = string.format("##Button_%s_%d", Set, ButtonIndex)
+            local showLabel = true
+            local btnKey = BMSettings:GetButtonSectionKeyBySetIndex(Set, ButtonIndex)
+            if BMSettings.settings.Buttons[btnKey] ~= nil and BMSettings.settings.Buttons[btnKey].ShowLabel ~= nil then
+                showLabel = BMSettings.settings.Buttons[btnKey].ShowLabel
             end
-        else
-            -- setup drag and drop
-            if ImGui.BeginDragDropSource() then
-                ImGui.SetDragDropPayload("BTN", ButtonIndex)
-                ImGui.Button(button.Label, btnSize, btnSize)
-                ImGui.EndDragDropSource()
-            end
-            if ImGui.BeginDragDropTarget() then
-                local payload = ImGui.AcceptDragDropPayload("BTN")
-                if payload ~= nil then
-                    ---@diagnostic disable-next-line: undefined-field
-                    local num = payload.Data;
-                    -- swap the keys in the button set
-                    BMSettings:GetSettings().Sets[Set][num], BMSettings:GetSettings().Sets[Set][ButtonIndex] =
-                        BMSettings:GetSettings().Sets[Set][ButtonIndex],
-                        BMSettings:GetSettings().Sets[Set][num]
-                    BMSettings:SaveSettings(true)
+            ImGui.PushID(buttonID)
+            clicked = BMButtonHandlers.Render(button, btnSize, showLabel, (BMSettings:GetCharacterWindow(self.id).Font or 10) / 10,
+                BMSettings:GetCharacterWindow(self.id).AdvTooltips)
+            ImGui.PopID()
+            -- TODO Move this to button config class and out of the UI thread.
+            if clicked then
+                if button.Unassigned then
+                    BMEditPopup:CreateButtonFromCursor(Set, ButtonIndex)
+                else
+                    BMButtonHandlers.Exec(button)
                 end
-                ImGui.EndDragDropTarget()
+            else
+                -- setup drag and drop
+                if ImGui.BeginDragDropSource() then
+                    ImGui.SetDragDropPayload("BTN", ButtonIndex)
+                    ImGui.Button(button.Label, btnSize, btnSize)
+                    ImGui.EndDragDropSource()
+                end
+                if ImGui.BeginDragDropTarget() then
+                    local payload = ImGui.AcceptDragDropPayload("BTN")
+                    if payload ~= nil then
+                        ---@diagnostic disable-next-line: undefined-field
+                        local num = payload.Data;
+                        -- swap the keys in the button set
+                        BMSettings:GetSettings().Sets[Set][num], BMSettings:GetSettings().Sets[Set][ButtonIndex] =
+                            BMSettings:GetSettings().Sets[Set][ButtonIndex],
+                            BMSettings:GetSettings().Sets[Set][num]
+                        BMSettings:SaveSettings(true)
+                    end
+                    ImGui.EndDragDropTarget()
+                end
+
+                self:RenderContextMenu(Set, ButtonIndex, buttonID)
             end
 
-            self:RenderContextMenu(Set, ButtonIndex, buttonID)
+            -- button grid
+            if ButtonIndex % self.cachedCols ~= 0 then ImGui.SameLine() end
         end
-
-        -- button grid
-        if ButtonIndex % self.cachedCols ~= 0 then ImGui.SameLine() end
     end
     ImGui.PopStyleVar(1)
 end
