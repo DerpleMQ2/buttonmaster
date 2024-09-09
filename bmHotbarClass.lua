@@ -569,6 +569,11 @@ function BMHotbarClass:RenderTabContextMenu()
                     .AdvTooltips
                 BMSettings:SaveSettings(true)
             end
+            if ImGui.MenuItem((BMSettings:GetCharacterWindow(self.id).HideScrollbar and "Show" or "Hide") .. " Scrollbar") then
+                BMSettings:GetCharacterWindow(self.id).HideScrollbar = not BMSettings:GetCharacterWindow(self.id)
+                    .HideScrollbar
+                BMSettings:SaveSettings(true)
+            end
             if ImGui.MenuItem((BMSettings:GetCharacterWindow(self.id).ShowSearch and "Disable" or "Enable") .. " Search") then
                 BMSettings:GetCharacterWindow(self.id).ShowSearch = not BMSettings:GetCharacterWindow(self.id)
                     .ShowSearch
