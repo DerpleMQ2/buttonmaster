@@ -97,6 +97,9 @@ local function ButtonGUI()
         if BMSettings:GetCharacterWindow(hotbarId).Locked then
             flags = bit32.bor(flags, ImGuiWindowFlags.NoMove, ImGuiWindowFlags.NoResize)
         end
+        if BMSettings:GetCharacterWindow(hotbarId).HideScrollbar then
+            flags = bit32.bor(flags, ImGuiWindowFlags.NoScrollbar)
+        end
         bmHotbar:RenderHotbar(flags)
     end
     BMEditPopup:RenderEditButtonPopup()
