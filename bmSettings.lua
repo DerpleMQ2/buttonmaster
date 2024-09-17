@@ -283,7 +283,7 @@ function BMSettings:ConvertToLatestConfigVersion()
         needsSave = true
         newSettings = self.settings
         newSettings.Version = 5
-        for charKey, _ in pairs(self.settings.Characters) do
+        for charKey, _ in pairs(self.settings.Characters or {}) do
             if self.settings.Characters[charKey] and self.settings.Characters[charKey].Sets ~= nil then
                 newSettings.Characters[charKey].Windows = {}
                 table.insert(newSettings.Characters[charKey].Windows,
@@ -310,8 +310,8 @@ function BMSettings:ConvertToLatestConfigVersion()
         newSettings.Version = 6
         newSettings.Defaults = nil
 
-        for _, curCharData in pairs(newSettings.Characters) do
-            for _, windowData in ipairs(curCharData.Windows) do
+        for _, curCharData in pairs(newSettings.Characters or {}) do
+            for _, windowData in ipairs(curCharData.Windows or {}) do
                 windowData.Locked = curCharData.Locked or false
                 windowData.HideTitleBar = curCharData.HideTitleBar or false
             end
@@ -336,8 +336,8 @@ function BMSettings:ConvertToLatestConfigVersion()
         newSettings = self.settings
         newSettings.Version = 7
 
-        for _, curCharData in pairs(newSettings.Characters) do
-            for _, windowData in ipairs(curCharData.Windows) do
+        for _, curCharData in pairs(newSettings.Characters or {}) do
+            for _, windowData in ipairs(curCharData.Windows or {}) do
                 windowData.Font = (newSettings.Global.Font or 1) * 10
                 windowData.ButtonSize = newSettings.Global.ButtnSize or 6
             end
