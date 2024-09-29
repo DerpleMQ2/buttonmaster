@@ -70,7 +70,7 @@ function BMButtonEditor:RenderEditButtonPopup()
                     self.tmpButton.TimerType = "Disc"
                 elseif attachmentType == "social" then
                     self.tmpButton.Label = buttonText
-                    if cursorIndex >= 120 then
+                    if cursorIndex + 1 > 120 then
                         self.tmpButton.Cmd = string.format("/alt act %d", cursorIndex)
                         self.tmpButton.Icon = nil
                         self.tmpButton.Cooldown = buttonText
@@ -79,7 +79,7 @@ function BMButtonEditor:RenderEditButtonPopup()
                         if mq.TLO.Social then
                             self.tmpButton.Cmd = ""
                             for i = 0, 4 do
-                                local cmd = mq.TLO.Social(cursorIndex).Cmd(i)()
+                                local cmd = mq.TLO.Social(cursorIndex + 1).Cmd(i)() or ""
                                 if cmd:len() > 0 then
                                     self.tmpButton.Cmd = string.format("%s%s%s", self.tmpButton.Cmd, self.tmpButton.Cmd:len() > 0 and "\n" or "", cmd)
                                 end
