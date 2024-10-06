@@ -1,4 +1,5 @@
 local mq                            = require('mq')
+local Set                           = require('mq.Set')
 local btnUtils                      = require('lib.buttonUtils')
 local BMButtonHandlers              = require('bmButtonHandlers')
 local themes                        = require('extras.themes')
@@ -659,6 +660,44 @@ function BMHotbarClass:RenderTabContextMenu()
         if ImGui.BeginMenu("Dev") then
             if ImGui.MenuItem((btnUtils.enableDebug and "Disable" or "Enable") .. " Debug") then
                 btnUtils.enableDebug = not btnUtils.enableDebug
+            end
+            if ImGui.MenuItem("Remove All Duped Buttons") then
+                local duplicatekeys = Set.new({})
+                for buttonKey, buttonData in pairs(BMSettings:GetSettings().Buttons or {}) do
+                    btnUtils.Output("\awTesting Button: \am%s", buttonKey)
+                    for curBtnKey, curBtn in pairs(BMSettings:GetSettings().Buttons or {}) do
+                        if buttonKey ~= curBtnKey and curBtn.Cmd == buttonData.Cmd then
+                            btnUtils.Output("\awButton: \am%s \awis a duplicate!", buttonKey)
+                            duplicatekeys:add(curBtnKey)
+                            duplicatekeys:add(buttonKey)
+                            break
+                        end
+                    end
+                end
+
+                for _, key in ipairs(duplicatekeys:toList()) do
+                    btnUtils.Output("\awDuplicate: \am%s \aw(\at%s\aw)", key, BMSettings:GetSettings().Buttons[key].Label)
+                    local isUsed = false
+                    for _, setButtons in pairs(BMSettings:GetSettings().Sets) do
+                        for _, buttonName in pairs(setButtons) do
+                            if buttonName == key then
+                                isUsed = true
+                            end
+                        end
+                    end
+
+                    if isUsed then
+                        btnUtils.Output("   \ag-> Used")
+                    else
+                        if BMSettings:GetSettings().Buttons[key] then
+                            btnUtils.Output("   \ay-> Unused - Removing!")
+                            BMSettings:GetSettings().Buttons[key] = nil
+                        else
+                            btnUtils.Output("   \ay-> Unused - Previosuly Removed!")
+                        end
+                    end
+                end
+                BMSettings:SaveSettings(true)
             end
             ImGui.EndMenu()
         end
