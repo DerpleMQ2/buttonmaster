@@ -401,10 +401,12 @@ function BMHotbarClass:RenderTabContextMenu()
             for k, _ in pairs(BMSettings:GetSettings().Sets) do
                 if ImGui.MenuItem(k) then
                     -- clean up any references to this set.
-                    for charConfigKey, charConfigValue in pairs(BMSettings:GetSettings().Characters) do
-                        for setKey, setName in pairs(charConfigValue.Windows[self.id].Sets) do
-                            if setName == k then
-                                BMSettings:GetSettings().Characters[charConfigKey].Windows[self.id].Sets[setKey] = nil
+                    for charConfigKey, charConfigValue in pairs(BMSettings:GetSettings().Characters or {}) do
+                        for windowKey, windowData in ipairs(charConfigValue.Windows or {}) do
+                            for setKey, setName in pairs(windowData.Sets or {}) do
+                                if setName == k then
+                                    BMSettings:GetSettings().Characters[charConfigKey].Windows[windowKey].Sets[setKey] = nil
+                                end
                             end
                         end
                     end
