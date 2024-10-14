@@ -71,7 +71,7 @@ function BMButtonEditor:RenderEditButtonPopup()
                 elseif attachmentType == "social" then
                     self.tmpButton.Label = buttonText
                     if cursorIndex + 1 > 120 then
-                        self.tmpButton.Cmd = string.format("/alt act %d", cursorIndex)
+                        self.tmpButton.Cmd = string.format("/alt act %d", cursorIndex - 120)
                         self.tmpButton.Icon = nil
                         self.tmpButton.Cooldown = buttonText
                         self.tmpButton.TimerType = "AA"
@@ -81,7 +81,8 @@ function BMButtonEditor:RenderEditButtonPopup()
                             for i = 0, 4 do
                                 local cmd = mq.TLO.Social(cursorIndex + 1).Cmd(i)() or ""
                                 if cmd:len() > 0 then
-                                    self.tmpButton.Cmd = string.format("%s%s%s", self.tmpButton.Cmd, self.tmpButton.Cmd:len() > 0 and "\n" or "", cmd)
+                                    self.tmpButton.Cmd = string.format("%s%s%s", self.tmpButton.Cmd,
+                                        self.tmpButton.Cmd:len() > 0 and "\n" or "", cmd)
                                 end
                             end
                         end
@@ -200,12 +201,14 @@ function BMButtonEditor:RenderButtonEditUI(renderButton, enableShare, enableEdit
 
     local colorChanged = false
     -- color pickers
-    colorChanged = btnUtils.RenderColorPicker(string.format("##ButtonColorPicker1_%s", renderButton.Label), 'Button', renderButton,
+    colorChanged = btnUtils.RenderColorPicker(string.format("##ButtonColorPicker1_%s", renderButton.Label), 'Button',
+        renderButton,
         'ButtonColorRGB')
     self.editButtonUIChanged = self.editButtonUIChanged or colorChanged
 
     ImGui.SameLine()
-    colorChanged = btnUtils.RenderColorPicker(string.format("##TextColorPicker1_%s", renderButton.Label), 'Text', renderButton, 'TextColorRGB')
+    colorChanged = btnUtils.RenderColorPicker(string.format("##TextColorPicker1_%s", renderButton.Label), 'Text',
+        renderButton, 'TextColorRGB')
     self.editButtonUIChanged = self.editButtonUIChanged or colorChanged
 
     ImGui.SameLine()
@@ -262,7 +265,8 @@ function BMButtonEditor:RenderButtonEditUI(renderButton, enableShare, enableEdit
         btnUtils.Tooltip(
             "Dynamically override the IconID with this Lua function. \nNote: This MUST return number, string : IconId, IconType")
 
-        self.selectedUpdateRate, _ = ImGui.Combo("Update Rate", self.selectedUpdateRate, function(idx) return BMSettings.Constants.UpdateRates[idx].Display end,
+        self.selectedUpdateRate, _ = ImGui.Combo("Update Rate", self.selectedUpdateRate,
+            function(idx) return BMSettings.Constants.UpdateRates[idx].Display end,
             #BMSettings.Constants.UpdateRates)
         renderButton.UpdateRate = BMSettings.Constants.UpdateRates[self.selectedUpdateRate].Value
         self.editButtonUIChanged = self.editButtonUIChanged or textChanged
