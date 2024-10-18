@@ -169,7 +169,16 @@ function ButtonUtils.RenderColorPicker(id, buttonTypeName, renderButton, key)
 
     if renderButton[key] ~= nil then
         local tColors = ButtonUtils.split(renderButton[key], ",")
-        for i, v in ipairs(tColors) do btnColor[i] = tonumber(v / 255) end
+        for i, v in ipairs(tColors) do
+            if tonumber(v) then
+                btnColor[i] = tonumber(v / 255)
+            else
+                btnColor[1] = 0
+                btnColor[2] = 0
+                btnColor[3] = 0
+                break
+            end
+        end
     else
         btnColor[1] = 0
         btnColor[2] = 0

@@ -62,6 +62,7 @@ function BMHotbarClass.new(id, createFresh)
         newBMHotbar.newY = 500
 
         BMSettings:SaveSettings(true)
+        BMSettings:updateCharacterDB(BMSettings.CharConfig, BMSettings:GetCharConfig())
     end
 
     BMSettings:GetCharConfig().Windows[id].Sets = BMSettings:GetCharConfig().Windows[id].Sets or {}
@@ -79,6 +80,7 @@ function BMHotbarClass:ToggleVisible()
     BMSettings:GetCharacterWindow(self.id).Visible = not BMSettings:GetCharacterWindow(self.id).Visible
     self.openGUI = BMSettings:GetCharacterWindow(self.id).Visible
     BMSettings:SaveSettings(true)
+    BMSettings:updateCharacterDB(BMSettings.CharConfig, BMSettings:GetCharConfig())
 end
 
 function BMHotbarClass:IsVisible()
@@ -247,6 +249,7 @@ function BMHotbarClass:RenderTabs()
             --ImGuiWindowFlags.NoMove
             BMSettings:GetCharacterWindow(self.id).Locked = not BMSettings:GetCharacterWindow(self.id).Locked
             BMSettings:SaveSettings(true)
+            BMSettings:updateCharacterDB(BMSettings.CharConfig, BMSettings:GetCharConfig())
         end
 
         ImGui.SetCursorPosY(ImGui.GetCursorPosY() + (iconPadding))
@@ -277,6 +280,7 @@ function BMHotbarClass:RenderTabs()
             --ImGuiWindowFlags.NoMove
             BMSettings:GetCharacterWindow(self.id).Locked = not BMSettings:GetCharacterWindow(self.id).Locked
             BMSettings:SaveSettings(true)
+            BMSettings:updateCharacterDB(BMSettings.CharConfig, BMSettings:GetCharConfig())
         end
 
         ImGui.SameLine()
@@ -380,6 +384,7 @@ function BMHotbarClass:RenderTabContextMenu()
                     if ImGui.MenuItem(k) then
                         table.insert(BMSettings:GetCharacterWindowSets(self.id), k)
                         BMSettings:SaveSettings(true)
+                        BMSettings:updateCharacterDB(BMSettings.CharConfig, BMSettings:GetCharConfig())
                         break
                     end
                 end
@@ -392,6 +397,7 @@ function BMHotbarClass:RenderTabContextMenu()
                 if ImGui.MenuItem(v) then
                     table.remove(BMSettings:GetCharConfig().Windows[self.id].Sets, i)
                     BMSettings:SaveSettings(true)
+                    BMSettings:updateCharacterDB(BMSettings.CharConfig, BMSettings:GetCharConfig())
                     break
                 end
             end
@@ -413,6 +419,8 @@ function BMHotbarClass:RenderTabContextMenu()
                     end
                     BMSettings:GetSettings().Sets[k] = nil
                     BMSettings:SaveSettings(true)
+                    BMSettings:deleteSetFromDB(k)
+                    BMSettings:deleteSetFromCharacterDB(BMSettings.CharConfig, k)
                     break
                 end
             end
@@ -439,6 +447,7 @@ function BMHotbarClass:RenderTabContextMenu()
                     end
                     BMSettings:GetSettings().Buttons[buttonData.id] = nil
                     BMSettings:SaveSettings(true)
+                    BMSettings:deleteButtonFromDB(buttonData.id)
                     break
                 end
             end
@@ -458,6 +467,7 @@ function BMHotbarClass:RenderTabContextMenu()
                     BMSettings:GetCharacterWindow(self.id).ButtonSize = i
                     self.buttonSizeDirty = true
                     BMSettings:SaveSettings(true)
+                    BMSettings:updateCharacterDB(BMSettings.CharConfig, BMSettings:GetCharConfig())
                     break
                 end
             end
@@ -489,6 +499,7 @@ function BMHotbarClass:RenderTabContextMenu()
                 if ImGui.MenuItem(v.label, nil, checked) then
                     BMSettings:GetCharacterWindow(self.id).Font = v.size
                     BMSettings:SaveSettings(true)
+                    BMSettings:updateCharacterDB(BMSettings.CharConfig, BMSettings:GetCharConfig())
                     break
                 end
             end
@@ -500,12 +511,15 @@ function BMHotbarClass:RenderTabContextMenu()
             if ImGui.MenuItem("Default", nil, checked) then
                 BMSettings:GetCharacterWindow(self.id).Theme = nil
                 BMSettings:SaveSettings(true)
+                BMSettings:updateCharacterDB(BMSettings.CharConfig, BMSettings:GetCharConfig())
             end
             for n, _ in pairs(themes) do
                 checked = (BMSettings:GetCharacterWindow(self.id).Theme or "") == n
                 if ImGui.MenuItem(n, nil, checked) then
                     BMSettings:GetCharacterWindow(self.id).Theme = n
                     BMSettings:SaveSettings(true)
+                    BMSettings:updateCharacterDB(BMSettings.CharConfig, BMSettings:GetCharConfig())
+
                     break
                 end
             end
@@ -514,6 +528,8 @@ function BMHotbarClass:RenderTabContextMenu()
                 if ImGui.MenuItem(n, nil, checked) then
                     BMSettings:GetCharacterWindow(self.id).Theme = n
                     BMSettings:SaveSettings(true)
+                    BMSettings:updateCharacterDB(BMSettings.CharConfig, BMSettings:GetCharConfig())
+
                     break
                 end
             end
@@ -561,26 +577,31 @@ function BMHotbarClass:RenderTabContextMenu()
                 BMSettings:GetCharacterWindow(self.id).HideTitleBar = not BMSettings:GetCharacterWindow(self.id)
                     .HideTitleBar
                 BMSettings:SaveSettings(true)
+                BMSettings:updateCharacterDB(BMSettings.CharConfig, BMSettings:GetCharConfig())
             end
             if ImGui.MenuItem((BMSettings:GetCharacterWindow(self.id).CompactMode and "Normal" or "Compact") .. " Mode") then
                 BMSettings:GetCharacterWindow(self.id).CompactMode = not BMSettings:GetCharacterWindow(self.id)
                     .CompactMode
                 BMSettings:SaveSettings(true)
+                BMSettings:updateCharacterDB(BMSettings.CharConfig, BMSettings:GetCharConfig())
             end
             if ImGui.MenuItem((BMSettings:GetCharacterWindow(self.id).AdvTooltips and "Disable" or "Enable") .. " Advanced Tooltips") then
                 BMSettings:GetCharacterWindow(self.id).AdvTooltips = not BMSettings:GetCharacterWindow(self.id)
                     .AdvTooltips
                 BMSettings:SaveSettings(true)
+                BMSettings:updateCharacterDB(BMSettings.CharConfig, BMSettings:GetCharConfig())
             end
             if ImGui.MenuItem((BMSettings:GetCharacterWindow(self.id).HideScrollbar and "Show" or "Hide") .. " Scrollbar") then
                 BMSettings:GetCharacterWindow(self.id).HideScrollbar = not BMSettings:GetCharacterWindow(self.id)
                     .HideScrollbar
                 BMSettings:SaveSettings(true)
+                BMSettings:updateCharacterDB(BMSettings.CharConfig, BMSettings:GetCharConfig())
             end
             if ImGui.MenuItem((BMSettings:GetCharacterWindow(self.id).ShowSearch and "Disable" or "Enable") .. " Search") then
                 BMSettings:GetCharacterWindow(self.id).ShowSearch = not BMSettings:GetCharacterWindow(self.id)
                     .ShowSearch
                 BMSettings:SaveSettings(true)
+                BMSettings:updateCharacterDB(BMSettings.CharConfig, BMSettings:GetCharConfig())
             end
             local fps_scale = {
                 {
@@ -607,6 +628,8 @@ function BMHotbarClass:RenderTabContextMenu()
                     if ImGui.MenuItem(v.label, nil, checked) then
                         BMSettings:GetCharacterWindow(self.id).FPS = v.fps
                         BMSettings:SaveSettings(true)
+                        BMSettings:updateCharacterDB(BMSettings.CharConfig, BMSettings:GetCharConfig())
+
                         break
                     end
                 end
@@ -751,6 +774,7 @@ function BMHotbarClass:RenderContextMenu(Set, Index, buttonID)
                         if ImGui.MenuItem(BMButtonHandlers.ResolveButtonLabel(value, true)) then
                             BMSettings:GetSettings().Sets[Set][Index] = key
                             BMSettings:SaveSettings(true)
+                            BMSettings:deleteButtonFromSetDB(Set, Index)
                             break
                         end
                     end
@@ -771,6 +795,7 @@ function BMHotbarClass:RenderContextMenu(Set, Index, buttonID)
             if ImGui.MenuItem("Unassign") then
                 BMSettings:GetSettings().Sets[Set][Index] = nil
                 BMSettings:SaveSettings(true)
+                BMSettings:deleteButtonFromSetDB(Set, Index)
             end
             if ImGui.MenuItem(Icons.MD_SHARE) then
                 BMButtonHandlers.ExportButtonToClipBoard(button)
@@ -842,6 +867,7 @@ function BMHotbarClass:RenderButtons(Set, searchText)
                             BMSettings:GetSettings().Sets[Set][ButtonIndex],
                             BMSettings:GetSettings().Sets[Set][num]
                         BMSettings:SaveSettings(true)
+                        BMSettings:convertConfigToDB('sets')
                     end
                     ImGui.EndDragDropTarget()
                 end
@@ -955,6 +981,8 @@ function BMHotbarClass:RenderCreateTab()
                     table.insert(BMSettings:GetCharConfig().Windows[self.id].Sets, self.newSetName)
                     BMSettings:GetSettings().Sets[self.newSetName] = {}
                     BMSettings:SaveSettings(true)
+                    BMSettings:updateCharacterDB(BMSettings.CharConfig, BMSettings:GetCharConfig())
+                    BMSettings:updateSetDB(self.newSetName, 1, '')
                 else
                     btnUtils.Output("\arError Saving Set: A set with this name already exists!\ax")
                 end
@@ -990,6 +1018,7 @@ function BMHotbarClass:GiveTime()
     if not BMSettings:GetCharacterWindow(self.id).FPS then
         BMSettings:GetCharacterWindow(self.id).FPS = 0
         BMSettings:SaveSettings(true)
+        BMSettings:updateCharacterDB(BMSettings.CharConfig, BMSettings:GetCharConfig())
     end
 
     local fps = BMSettings:GetCharacterWindow(self.id).FPS / 10

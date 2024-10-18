@@ -150,8 +150,8 @@ function BMButtonHandlers.RenderButtonIcon(Button, cursorScreenPos, size)
 
     local draw_list = ImGui.GetWindowDrawList()
 
-    local iconId = Button.Icon
-    local iconType = Button.IconType
+    local iconId = Button.Icon or -1
+    local iconType = Button.IconType or ''
 
     if Button.IconLua and Button.IconLua:len() > 0 then
         local success
@@ -164,10 +164,11 @@ function BMButtonHandlers.RenderButtonIcon(Button, cursorScreenPos, size)
     end
 
     local renderIconAnim = animItems
-    if iconType == nil or iconType == "Spell" then
+
+    if iconType == "Spell" then
         animSpellIcons:SetTextureCell(tonumber(iconId) or 0)
         renderIconAnim = animSpellIcons
-    else
+    elseif iconType == "Item" then
         animItems:SetTextureCell(tonumber(iconId) or 0)
     end
 
