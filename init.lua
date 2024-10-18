@@ -42,6 +42,7 @@ function CopyLocalSet(key)
     local newTable = btnUtils.deepcopy(BMSettings:GetSettings().Characters[key])
     BMSettings:GetSettings().Characters[BMSettings.CharConfig] = newTable
     BMSettings:SaveSettings(true)
+    BMSettings:UpdateCharacterDB(BMSettings.CharConfig, BMSettings:GetCharConfig())
     BMUpdateSettings = true
 end
 
