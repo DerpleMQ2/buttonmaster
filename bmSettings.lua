@@ -217,75 +217,103 @@ function BMSettings:convertConfigToDB(table_name)
         return
     end
 
-
     local settings = config()
 
+    -- Save Global Settings
     if table_name == "all" or table_name == "global" then
-        -- Save Global Settings
-        self:saveToDB(db, "INSERT OR REPLACE INTO settings (server, character,  settings_version, settings_last_backup) VALUES (?, ?, ?, ?)",
+        self:saveToDB(db, "INSERT OR REPLACE INTO settings (server, character, settings_version, settings_last_backup) VALUES (?, ?, ?, ?)",
             "global", "global", self.Globals.Version, settings.LastBackup or 0)
     end
 
+    -- Save Sets with batching
     if table_name == "all" or table_name == "sets" then
-        -- Save Sets
+        db:exec("BEGIN TRANSACTION")
+        local count = 0
         for setName, buttons in pairs(settings.Sets) do
             for buttonNumber, buttonID in pairs(buttons) do
                 self:saveToDB(db, "INSERT OR REPLACE INTO sets (set_name, button_number, button_id) VALUES (?, ?, ?)", setName, buttonNumber, buttonID)
+                count = count + 1
+                if count % BATCH_SIZE == 0 then
+                    db:exec("COMMIT")
+                    db:exec("BEGIN TRANSACTION")
+                end
             end
         end
+        db:exec("COMMIT")
     end
 
-
+    -- Save Buttons with batching
     if table_name == "all" or table_name == "buttons" then
-        -- Save Buttons
+        db:exec("BEGIN TRANSACTION")
+        local count = 0
         for buttonID, buttonData in pairs(settings.Buttons) do
             local icon = tonumber(buttonData.Icon) or -1
-            local showLabel = icon <= 0 and true or buttonData.ShowLabel ~= nil and buttonData.ShowLabel or true
+            local showLabel = icon <= 0 or buttonData.ShowLabel == true
             self:saveToDB(db, [[
-            INSERT OR REPLACE INTO buttons (
-                button_number, button_label, button_render, button_text_color, button_button_color,
-                button_cached_countdown, button_cached_cooldown, button_cached_toggle_locked,
-                button_cached_last_run, button_label_mid_x, button_label_mid_y, button_cached_label,
-                button_cmd, button_evaluate_label, button_show_label, button_icon,
-                button_icon_type, button_icon_lua, button_timer_type, button_cooldown
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]],
+                INSERT OR REPLACE INTO buttons (
+                    button_number, button_label, button_render, button_text_color, button_button_color,
+                    button_cached_countdown, button_cached_cooldown, button_cached_toggle_locked,
+                    button_cached_last_run, button_label_mid_x, button_label_mid_y, button_cached_label,
+                    button_cmd, button_evaluate_label, button_show_label, button_icon,
+                    button_icon_type, button_icon_lua, button_timer_type, button_cooldown
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]],
                 buttonID, buttonData.Label or "", buttonData.highestRenderTime or 0, buttonData.TextColorRGB or "", buttonData.ButtonColorRGB or "",
                 buttonData.CachedCountDown or 0, buttonData.CachedCoolDownTimer or 0, buttonData.CachedToggleLocked or 0,
                 buttonData.CachedLastRan or 0, buttonData.labelMidX or 0, buttonData.labelMidY or 0, buttonData.CachedLabel or "",
                 buttonData.Cmd or "", buttonData.EvaluateLabel and 1 or 0, showLabel and 1 or 0, icon,
                 buttonData.IconType or "Item", buttonData.IconLua or "", buttonData.TimerType or "", buttonData.Cooldown or ""
             )
+            count = count + 1
+            if count % BATCH_SIZE == 0 then
+                db:exec("COMMIT")
+                db:exec("BEGIN TRANSACTION")
+            end
         end
-    end
+        db:exec("COMMIT")
 
-    if table_name == "all" or table_name == "characters" then
-        -- Save Character Data
-        for charName, charData in pairs(settings.Characters or {}) do
-            self:saveToDB(db, "INSERT INTO characters (character, character_locked, character_hide_title) VALUES (?, ?, ?)",
-                charName, charData.Locked and 1 or 0, charData.HideTitleBar and 1 or 0)
+        -- Save Characters with batching
+        if table_name == "all" or table_name == "characters" then
+            db:exec("BEGIN TRANSACTION")
+            local count = 0
+            for charName, charData in pairs(settings.Characters or {}) do
+                self:saveToDB(db, "INSERT INTO characters (character, character_locked, character_hide_title) VALUES (?, ?, ?)",
+                    charName, charData.Locked and 1 or 0, charData.HideTitleBar and 1 or 0)
+                count = count + 1
+                if count % BATCH_SIZE == 0 then
+                    db:exec("COMMIT")
+                    db:exec("BEGIN TRANSACTION")
+                end
 
-            if charData.Windows then
-                for windowID, windowData in ipairs(charData.Windows or {}) do
-                    windowData.Pos = windowData.Pos or { x = 0, y = 0, } -- Default position
-                    for setIndex, setName in ipairs(windowData.Sets or {}) do
-                        self:saveToDB(db, [[
-                        INSERT OR REPLACE INTO windows (
-                            server, character, window_id, window_fps, window_button_size, window_advtooltip,
-                            window_compact, window_hide_title, window_width, window_height, window_x, window_y,
-                            window_visible, window_font_size, window_locked, window_theme, window_set_id, window_set_name
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]],
-                            mq.TLO.EverQuest.Server(), charName, windowID, windowData.FPS or 0, windowData.ButtonSize or 0, windowData.AdvTooltips and 1 or 0,
-                            windowData.CompactMode and 1 or 0, windowData.HideTitleBar and 1 or 0, windowData.Width or 0, windowData.Height or 0,
-                            windowData.Pos.x or 0, windowData.Pos.y or 0, windowData.Visible and 1 or 0, windowData.Font or 0,
-                            windowData.Locked and 1 or 0, windowData.Theme or "", setIndex, setName
-                        )
+                -- Save character's windows
+                if charData.Windows then
+                    for windowID, windowData in ipairs(charData.Windows or {}) do
+                        windowData.Pos = windowData.Pos or { x = 0, y = 0, } -- Default position
+                        for setIndex, setName in ipairs(windowData.Sets or {}) do
+                            self:saveToDB(db, [[
+                            INSERT OR REPLACE INTO windows (
+                                server, character, window_id, window_fps, window_button_size, window_advtooltip,
+                                window_compact, window_hide_title, window_width, window_height, window_x, window_y,
+                                window_visible, window_font_size, window_locked, window_theme, window_set_id, window_set_name
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]],
+                                mq.TLO.EverQuest.Server(), charName, windowID, windowData.FPS or 0, windowData.ButtonSize or 0, windowData.AdvTooltips and 1 or 0,
+                                windowData.CompactMode and 1 or 0, windowData.HideTitleBar and 1 or 0, windowData.Width or 0, windowData.Height or 0,
+                                windowData.Pos.x or 0, windowData.Pos.y or 0, windowData.Visible and 1 or 0, windowData.Font or 0,
+                                windowData.Locked and 1 or 0, windowData.Theme or "", setIndex, setName
+                            )
+                            count = count + 1
+                            if count % BATCH_SIZE == 0 then
+                                db:exec("COMMIT")
+                                db:exec("BEGIN TRANSACTION")
+                            end
+                        end
                     end
                 end
             end
+            db:exec("COMMIT")
         end
+        db:close()
+        print("Conversion complete!")
     end
-    db:close()
-    print("Conversion complete!")
 end
 
 -- Retrieve and Deserialize Data
