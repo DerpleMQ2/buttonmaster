@@ -44,7 +44,6 @@ function BMSettings:InitializeDB()
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             server TEXT NOT NULL,
             character TEXT NOT NULL,
-            settings_button_size INTEGER NOT NULL,
             settings_version INTEGER NOT NULL,
             settings_last_backup INTEGER NOT NULL,
             UNIQUE(server, character)
@@ -222,8 +221,8 @@ function BMSettings:convertConfigToDB(table_name)
 
     if table_name == "all" or table_name == "global" then
         -- Save Global Settings
-        self:saveToDB(db, "INSERT OR REPLACE INTO settings (server, character, settings_button_size, settings_version, settings_last_backup) VALUES (?, ?, ?, ?, ?)",
-            "global", "global", settings.Global.ButtonSize or 0, self.Globals.Version, settings.LastBackup or 0)
+        self:saveToDB(db, "INSERT OR REPLACE INTO settings (server, character, settings_version, settings_last_backup) VALUES (?, ?, ?, ?)",
+            "global", "global", self.Globals.Version, settings.LastBackup or 0)
     end
 
     if table_name == "all" or table_name == "sets" then
@@ -300,11 +299,11 @@ function BMSettings:retrieveDataFromDB()
         Characters = {},
     }
 
-    local globalSettingsData = self:loadFromDB(db, "SELECT settings_button_size, settings_version, settings_last_backup FROM settings WHERE server='global' AND character='global'")
+    local globalSettingsData = self:loadFromDB(db, "SELECT settings_version, settings_last_backup FROM settings WHERE server='global' AND character='global'")
     if globalSettingsData[1] then
-        self.settings.Global = {
-            ButtonSize = globalSettingsData[1].settings_button_size,
-        }
+        -- self.settings.Global = {
+        --     ButtonSize = globalSettingsData[1].settings_button_size,
+        -- }
         self.settings.Version = globalSettingsData[1].settings_version
         self.settings.LastBackup = globalSettingsData[1].settings_last_backup
     end
