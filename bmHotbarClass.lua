@@ -564,7 +564,9 @@ function BMHotbarClass:RenderTabContextMenu()
             table.sort(charList, function(a, b) return a.key < b.key end)
             for _, value in ipairs(charList) do
                 if ImGui.MenuItem(value.displayName) then
-                    CopyLocalSet(value.key)
+                    -- CopyLocalSet(value.key)
+                    BMCopy = true
+                    BMCopyKey = value.key
                 end
             end
             ImGui.EndMenu()

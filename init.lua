@@ -26,7 +26,8 @@ local BMButtonHandlers = require('bmButtonHandlers')
 BMHotbars              = {}
 BMReloadSettings       = false
 BMUpdateSettings       = false
-
+BMCopy                 = false
+BMCopyKey              = nil
 -- [[ UI ]] --
 local openGUI          = true
 
@@ -38,11 +39,60 @@ local function BindBtn(num)
     end
 end
 
+-- function CopyLocalSet(key)
+--     local newTable = btnUtils.deepcopy(BMSettings:GetSettings().Characters[key])
+--     BMSettings:GetSettings().Characters[BMSettings.CharConfig] = newTable
+--     BMSettings:SaveSettings(true)
+--     BMSettings:UpdateCharacterDB(BMSettings.CharConfig, BMSettings:GetCharConfig())
+--     BMUpdateSettings = true
+-- end
+
 function CopyLocalSet(key)
-    local newTable = btnUtils.deepcopy(BMSettings:GetSettings().Characters[key])
-    BMSettings:GetSettings().Characters[BMSettings.CharConfig] = newTable
+    local db = BMSettings:InitializeDB()
+    local newCharacterData = {
+        Locked = false,
+        HideTitleBar = false,
+        Windows = {},
+    }
+
+    -- Retrieve character data from the `characters` table
+    local charData = BMSettings:loadFromDB(db, "SELECT character_locked, character_hide_title FROM characters WHERE character = ?", key)
+    if #charData > 0 then
+        newCharacterData.Locked = charData[1].character_locked == 1
+        newCharacterData.HideTitleBar = charData[1].character_hide_title == 1
+    end
+
+    -- Retrieve window data from the `windows` table for the specified character
+    local windowsData = BMSettings:loadFromDB(db, "SELECT * FROM windows WHERE character = ?", key)
+    for _, window in ipairs(windowsData) do
+        local windowID = window.window_id
+        newCharacterData.Windows[windowID] = newCharacterData.Windows[windowID] or { Sets = {}, }
+        local win = newCharacterData.Windows[windowID]
+
+        -- Populate window properties
+        win.FPS = window.window_fps
+        win.ButtonSize = window.window_button_size
+        win.AdvTooltips = window.window_advtooltip == 1
+        win.CompactMode = window.window_compact == 1
+        win.HideTitleBar = window.window_hide_title == 1
+        win.Width = window.window_width
+        win.Height = window.window_height
+        win.Pos = { x = window.window_x, y = window.window_y, }
+        win.Visible = window.window_visible == 1
+        win.Font = window.window_font_size
+        win.Locked = window.window_locked == 1
+        win.Theme = window.window_theme
+        win.Sets[window.window_set_id] = window.window_set_name
+    end
+
+    db:close()
+
+    -- Deep-copy the retrieved data into the current character settings
+    BMSettings:GetSettings().Characters[BMSettings.CharConfig] = btnUtils.deepcopy(newCharacterData)
+
+    -- Save and update the settings in the database
     BMSettings:SaveSettings(true)
-    BMSettings:UpdateCharacterDB(BMSettings.CharConfig, BMSettings:GetCharConfig())
+    BMSettings:updateCharacterDB(BMSettings.CharConfig, BMSettings:GetCharConfig())
     BMUpdateSettings = true
 end
 
@@ -56,7 +106,9 @@ local function BindBtnCopy(server, character)
         return
     end
 
-    CopyLocalSet(key)
+    -- CopyLocalSet(key)
+    BMCopy = true
+    BMCopyKey = key
 end
 
 local function BindBtnExec(set, index)
@@ -90,18 +142,25 @@ local function ButtonGUI()
     -- Set this way up here so the theme can override.
     ImGui.PushStyleColor(ImGuiCol.ButtonHovered, 0.9, 0.9, 0.9, 0.5)
     ImGui.PushStyleColor(ImGuiCol.HeaderHovered, 0.9, 0.9, 0.9, 0.0)
-    for hotbarId, bmHotbar in ipairs(BMHotbars) do
-        local flags = ImGuiWindowFlags.NoFocusOnAppearing
-        if BMSettings:GetCharacterWindow(hotbarId).HideTitleBar then
-            flags = bit32.bor(flags, ImGuiWindowFlags.NoTitleBar)
+    if BMHotbars ~= nil then
+        for hotbarId, bmHotbar in ipairs(BMHotbars) do
+            if BMSettings:GetCharacterWindow(hotbarId) ~= nil then
+                local hideTitleBar = BMSettings:GetCharacterWindow(hotbarId).HideTitleBar ~= nil and BMSettings:GetCharacterWindow(hotbarId).HideTitleBar or false
+                local locked = BMSettings:GetCharacterWindow(hotbarId).Locked ~= nil and BMSettings:GetCharacterWindow(hotbarId).Locked or false
+                local hideScrollbar = BMSettings:GetCharacterWindow(hotbarId).HideScrollbar ~= nil and BMSettings:GetCharacterWindow(hotbarId).HideScrollbar or false
+                local flags = ImGuiWindowFlags.NoFocusOnAppearing
+                if hideTitleBar then
+                    flags = bit32.bor(flags, ImGuiWindowFlags.NoTitleBar)
+                end
+                if locked then
+                    flags = bit32.bor(flags, ImGuiWindowFlags.NoMove, ImGuiWindowFlags.NoResize)
+                end
+                if hideScrollbar then
+                    flags = bit32.bor(flags, ImGuiWindowFlags.NoScrollbar)
+                end
+                bmHotbar:RenderHotbar(flags)
+            end
         end
-        if BMSettings:GetCharacterWindow(hotbarId).Locked then
-            flags = bit32.bor(flags, ImGuiWindowFlags.NoMove, ImGuiWindowFlags.NoResize)
-        end
-        if BMSettings:GetCharacterWindow(hotbarId).HideScrollbar then
-            flags = bit32.bor(flags, ImGuiWindowFlags.NoScrollbar)
-        end
-        bmHotbar:RenderHotbar(flags)
     end
     BMEditPopup:RenderEditButtonPopup()
     ImGui.PopStyleColor(2)
@@ -133,6 +192,12 @@ end
 local function GiveTime()
     while mq.TLO.MacroQuest.GameState() == "INGAME" do
         mq.delay(10)
+        if BMCopy then
+            BMCopy = false
+            CopyLocalSet(BMCopyKey)
+            BMCopyKey = nil
+        end
+
         if BMReloadSettings then
             BMReloadSettings = false
             BMSettings:LoadSettings()
