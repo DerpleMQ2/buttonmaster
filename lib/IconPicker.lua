@@ -74,7 +74,7 @@ function IconPicker:RenderIconPicker()
     if not self.Open then return end
     self.Open, self.Draw = ImGui.Begin('Icon Picker', self.Open, ImGuiWindowFlags.None)
     if self.Draw then
-        self.Page = ImGui.InputInt("Page", self.Page, 1)
+        self.Page = ImGui.SliderInt("Page", self.Page,1, 26)
         if self.Page < 1 then self.Page = 1 end
 
         if ImGui.BeginTabBar("IconTabs") then
