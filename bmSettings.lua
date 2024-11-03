@@ -2,6 +2,7 @@ local mq                         = require('mq')
 local btnUtils                   = require('lib.buttonUtils')
 local PackageMan                 = require('mq.PackageMan')
 local sqlite3                    = PackageMan.Require('lsqlite3')
+local BATCH_SIZE                 = 500
 
 local settings_base              = mq.configDir .. '/ButtonMaster'
 local settings_path              = settings_base .. '.lua '
@@ -128,7 +129,7 @@ end
 
 function BMSettings:updateButtonDB(buttonData, id)
     local db = self:InitializeDB()
-    local icon = buttonData.Icon or 0
+    local icon = tonumber(buttonData.Icon) or 0
     local showLabel = icon == 0 and true or buttonData.ShowLabel ~= nil and buttonData.ShowLabel or true
     self:saveToDB(db, [[
     INSERT OR REPLACE INTO buttons (
@@ -142,7 +143,7 @@ function BMSettings:updateButtonDB(buttonData, id)
         buttonData.CachedCountDown or 0, buttonData.CachedCoolDownTimer or 0, buttonData.CachedToggleLocked or 0,
         buttonData.CachedLastRan or 0, buttonData.labelMidX or 0, buttonData.labelMidY or 0, buttonData.CachedLabel or "",
         buttonData.Cmd or "", buttonData.EvaluateLabel and 1 or 0, showLabel and 1 or 0, icon,
-        buttonData.IconType or "", buttonData.IconLua or "", buttonData.TimerType or "", buttonData.Cooldown or ""
+        buttonData.IconType or "Item", buttonData.IconLua or "", buttonData.TimerType or "", buttonData.Cooldown or ""
     )
     db:close()
 end
@@ -221,7 +222,7 @@ function BMSettings:convertConfigToDB(table_name)
 
     if table_name == "all" or table_name == "global" then
         -- Save Global Settings
-        self:saveToDB(db, "INSERT OR REPLACE INTO settings (server, character, settings_version, settings_last_backup) VALUES (?, ?, ?, ?)",
+        self:saveToDB(db, "INSERT OR REPLACE INTO settings (server, character,  settings_version, settings_last_backup) VALUES (?, ?, ?, ?)",
             "global", "global", self.Globals.Version, settings.LastBackup or 0)
     end
 
@@ -238,8 +239,8 @@ function BMSettings:convertConfigToDB(table_name)
     if table_name == "all" or table_name == "buttons" then
         -- Save Buttons
         for buttonID, buttonData in pairs(settings.Buttons) do
-            local icon = buttonData.Icon or -1
-            local showLabel = icon == 0 and true or buttonData.ShowLabel ~= nil and buttonData.ShowLabel or true
+            local icon = tonumber(buttonData.Icon) or -1
+            local showLabel = icon <= 0 and true or buttonData.ShowLabel ~= nil and buttonData.ShowLabel or true
             self:saveToDB(db, [[
             INSERT OR REPLACE INTO buttons (
                 button_number, button_label, button_render, button_text_color, button_button_color,
@@ -252,7 +253,7 @@ function BMSettings:convertConfigToDB(table_name)
                 buttonData.CachedCountDown or 0, buttonData.CachedCoolDownTimer or 0, buttonData.CachedToggleLocked or 0,
                 buttonData.CachedLastRan or 0, buttonData.labelMidX or 0, buttonData.labelMidY or 0, buttonData.CachedLabel or "",
                 buttonData.Cmd or "", buttonData.EvaluateLabel and 1 or 0, showLabel and 1 or 0, icon,
-                buttonData.IconType or "", buttonData.IconLua or "", buttonData.TimerType or "", buttonData.Cooldown or ""
+                buttonData.IconType or "Item", buttonData.IconLua or "", buttonData.TimerType or "", buttonData.Cooldown or ""
             )
         end
     end
@@ -331,8 +332,8 @@ function BMSettings:retrieveDataFromDB()
             Cmd = button.button_cmd,
             EvaluateLabel = button.button_evaluate_label == 1,
             ShowLabel = button.button_show_label == 1,
-            Icon = button.button_icon > 0 and button.button_icon or nil,
-            IconType = button.button_icon_type,
+            Icon = tonumber(button.button_icon) > 0 and tonumber(button.button_icon) or nil,
+            IconType = button.button_icon_type ~= "" and button.button_icon_type or "Item",
             IconLua = button.button_icon_lua,
             TimerType = button.button_timer_type,
             Cooldown = button.button_cooldown,
@@ -394,7 +395,6 @@ function BMSettings:SaveSettings(doBroadcast)
         mq.pickle(mq.configDir .. "/Buttonmaster-Backups/ButtonMaster-backup-" .. os.date("%m-%d-%y-%H-%M-%S") .. ".lua",
             self.settings)
     end
-
     mq.pickle(settings_path, self.settings)
 
     if doBroadcast and mq.TLO.MacroQuest.GameState() == "INGAME" then
