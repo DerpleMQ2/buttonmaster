@@ -1,21 +1,27 @@
-local mq                           = require('mq')
-local btnUtils                     = require('lib.buttonUtils')
-local BMButtonHandlers             = require('bmButtonHandlers')
-local picker                       = require('lib.IconPicker').new()
+local mq                              = require('mq')
+local btnUtils                        = require('lib.buttonUtils')
+local BMButtonHandlers                = require('bmButtonHandlers')
+local Zep                             = require('Zep')
+local picker                          = require('lib.IconPicker').new()
 
-local BMButtonEditor               = {}
-BMButtonEditor.__index             = BMButtonEditor
-BMButtonEditor.editButtonPopupOpen = false
-BMButtonEditor.editButtonUseCursor = false
-BMButtonEditor.editButtonAdvanced  = false
-BMButtonEditor.editButtonSet       = ""
-BMButtonEditor.editButtonIndex     = 0
-BMButtonEditor.editButtonUIChanged = false
+local BMButtonEditor                  = {}
+BMButtonEditor.__index                = BMButtonEditor
+BMButtonEditor.editButtonPopupOpen    = false
+BMButtonEditor.editButtonUseCursor    = false
+BMButtonEditor.editButtonAdvanced     = false
+BMButtonEditor.editButtonSet          = ""
+BMButtonEditor.editButtonIndex        = 0
+BMButtonEditor.editButtonUIChanged    = false
 
-BMButtonEditor.tmpButton           = nil
+BMButtonEditor.tmpButton              = nil
 
-BMButtonEditor.selectedTimerType   = 1
-BMButtonEditor.selectedUpdateRate  = 1
+BMButtonEditor.selectedTimerType      = 1
+BMButtonEditor.selectedUpdateRate     = 1
+
+BMButtonEditor.textEditor             = Zep.Editor.new("##ButtonMasterEditor")
+BMButtonEditor.textBuffer             = BMButtonEditor.textEditor:CreateBuffer("[ButtonMaster]", "")
+BMButtonEditor.textBuffer.syntax      = 'lua'
+BMButtonEditor.textEditor.windowFlags = bit32.bor(Zep.WindowFlags.ShowLineNumbers, Zep.WindowFlags.ShowIndicators)
 
 function BMButtonEditor:RenderEditButtonPopup()
     if not self.editButtonPopupOpen then
@@ -101,19 +107,8 @@ function BMButtonEditor:RenderEditButtonPopup()
         self:RenderButtonEditUI(self.tmpButton, true, true)
 
         -- save button
-        if ImGui.Button("Save") or (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows) and (ImGui.IsKeyPressed(ImGuiMod.Ctrl) and ImGui.IsKeyPressed(ImGuiKey.S))) then
-            -- make sure the button label isn't nil/empty/spaces
-            if self.tmpButton.Label ~= nil and self.tmpButton.Label:gsub("%s+", ""):len() > 0 then
-                BMSettings:GetSettings().Sets[self.editButtonSet][self.editButtonIndex] =
-                    ButtonKey                                                                      -- add the button key for this button set index
-                BMSettings:GetSettings().Buttons[ButtonKey] = btnUtils.shallowcopy(self.tmpButton) -- store the tmp button into the settings table
-                BMSettings:GetSettings().Buttons[ButtonKey].Unassigned = nil                       -- clear the unassigned flag
-
-                BMSettings:SaveSettings(true)
-                self.editButtonUIChanged = false
-            else
-                btnUtils.Output("\arSave failed.  Button Label cannot be empty.")
-            end
+        if ImGui.Button("Save") or (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows) and (ImGui.IsKeyChordPressed(bit32.bor(ImGuiMod.Ctrl, ImGuiKey.S)))) then
+            self:SaveButton(ButtonKey)
         end
 
         ImGui.SameLine()
@@ -132,22 +127,30 @@ function BMButtonEditor:RenderEditButtonPopup()
     end
 
     if ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows) then
-        if ImGui.IsKeyPressed(ImGuiMod.Ctrl) and ImGui.IsKeyPressed(ImGuiKey.S) then
-            if self.tmpButton.Label ~= nil and self.tmpButton.Label:gsub("%s+", ""):len() > 0 then
-                BMSettings:GetSettings().Sets[self.editButtonSet][self.editButtonIndex] =
-                    ButtonKey                                                                      -- add the button key for this button set index
-                BMSettings:GetSettings().Buttons[ButtonKey] = btnUtils.shallowcopy(self.tmpButton) -- store the tmp button into the settings table
-                BMSettings:GetSettings().Buttons[ButtonKey].Unassigned = nil                       -- clear the unassigned flag
-
-                BMSettings:SaveSettings(true)
-                self.editButtonUIChanged = false
-            else
-                btnUtils.Output("\arSave failed.  Button Label cannot be empty.")
-            end
+        if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows) and (ImGui.IsKeyChordPressed(bit32.bor(ImGuiMod.Ctrl, ImGuiKey.S)))) then
+            self:SaveButton(ButtonKey)
         end
     end
     ImGui.PopID()
     ImGui.End()
+end
+
+function BMButtonEditor:SaveButton(ButtonKey)
+    -- make sure the button label isn't nil/empty/spaces
+    if self.tmpButton.Label ~= nil and self.tmpButton.Label:gsub("%s+", ""):len() > 0 then
+        self.tmpButton.Cmd = BMButtonEditor.textBuffer:GetText()
+
+        BMSettings:GetSettings().Sets[self.editButtonSet][self.editButtonIndex] =
+            ButtonKey                                                                      -- add the button key for this button set index
+        BMSettings:GetSettings().Buttons[ButtonKey] = btnUtils.shallowcopy(self.tmpButton) -- store the tmp button into the settings table
+        BMSettings:GetSettings().Buttons[ButtonKey].Unassigned = nil                       -- clear the unassigned flag
+
+        BMSettings:SaveSettings(true)
+        BMButtonEditor.textBuffer:ClearFlags(Zep.BufferFlags.Dirty)
+        self.editButtonUIChanged = false
+    else
+        btnUtils.Output("\arSave failed.  Button Label cannot be empty.")
+    end
 end
 
 function BMButtonEditor:CloseEditPopup()
@@ -165,6 +168,7 @@ function BMButtonEditor:OpenEditPopup(Set, Index)
     self.selectedUpdateRate = 1
     local button = BMSettings:GetButtonBySetIndex(Set, Index)
     self.tmpButton = btnUtils.shallowcopy(button)
+    BMButtonEditor.textBuffer:SetText(button.Cmd or "")
 
     if not button.Unassigned and button.TimerType and button.TimerType:len() > 0 then
         for index, type in ipairs(BMSettings.Constants.TimerTypes) do
@@ -281,11 +285,10 @@ function BMButtonEditor:RenderButtonEditUI(renderButton, enableShare, enableEdit
     local yPos = ImGui.GetCursorPosY()
     local footerHeight = 35
     local editHeight = ImGui.GetWindowHeight() - yPos - footerHeight
-    ImGui.PushFont(ImGui.ConsoleFont)
-    renderButton.Cmd, textChanged = ImGui.InputTextMultiline("##_Cmd_Edit", renderButton.Cmd or "",
-        ImVec2(ImGui.GetWindowWidth() * 0.98, editHeight), ImGuiInputTextFlags.AllowTabInput)
-    ImGui.PopFont()
-    self.editButtonUIChanged = self.editButtonUIChanged or textChanged
+    --ImGui.PushFont(ImGui.ConsoleFont)
+    BMButtonEditor.textEditor:Render("##ButtonMasterEditor", ImVec2(ImGui.GetWindowWidth() * 0.98, editHeight))
+    --ImGui.PopFont()
+    self.editButtonUIChanged = self.editButtonUIChanged or BMButtonEditor.textBuffer:HasFlag(Zep.BufferFlags.Dirty)
 end
 
 function BMButtonEditor:RenderTimerPanel(renderButton)
