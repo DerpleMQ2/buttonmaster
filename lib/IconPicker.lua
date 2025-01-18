@@ -88,6 +88,7 @@ function IconPicker:RenderIconPicker()
                 self:RenderTab(self.renderItemIcon, self.maxItem)
                 ImGui.EndTabItem()
             end
+            ImGui.EndTabBar()
         end
     end
     ImGui.End()
