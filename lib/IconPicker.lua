@@ -76,7 +76,6 @@ function IconPicker:RenderIconPicker()
     if self.Draw then
         self.Page = ImGui.InputInt("Page", self.Page, 1)
         if self.Page < 1 then self.Page = 1 end
-
         if ImGui.BeginTabBar("IconTabs") then
             if ImGui.BeginTabItem("Spell Icons") then
                 self.SelectedType = "Spell"
@@ -88,6 +87,7 @@ function IconPicker:RenderIconPicker()
                 self:RenderTab(self.renderItemIcon, self.maxItem)
                 ImGui.EndTabItem()
             end
+            ImGui.EndTabBar()
         end
     end
     ImGui.End()
