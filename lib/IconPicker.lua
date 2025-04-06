@@ -66,8 +66,8 @@ function IconPicker:RenderTab(getterFn, maxIcon)
             getterFn(self, iconId)
         end
         ImGui.EndTable()
-        ImGui.EndChild()
     end
+    ImGui.EndChild()
 end
 
 function IconPicker:RenderIconPicker()
