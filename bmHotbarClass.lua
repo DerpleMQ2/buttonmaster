@@ -295,8 +295,8 @@ function BMHotbarClass:RenderTabs()
                         -- tab edit popup
                         if ImGui.BeginPopupContextItem(set) then
                             ImGui.Text("Edit Name:")
-                            local tmp, selected = ImGui.InputText("##edit", set, 0)
-                            if selected then self.newSetName = tmp end
+                            local tmp, changed = ImGui.InputText("##edit", set, 0)
+                            if changed or self.newSetName:len() == 0 then self.newSetName = tmp end
                             if ImGui.Button("Save") then
                                 BMEditPopup:CloseEditPopup()
                                 local newSetLabel = self.newSetName
@@ -309,8 +309,8 @@ function BMHotbarClass:RenderTabs()
 
                                     -- update the character button set name
                                     for curCharKey, curCharData in pairs(BMSettings:GetSettings().Characters) do
-                                        for windowIdx, windowData in ipairs(curCharData.Windows) do
-                                            for setIdx, oldSetName in ipairs(windowData.Sets) do
+                                        for windowIdx, windowData in ipairs(curCharData.Windows or {}) do
+                                            for setIdx, oldSetName in ipairs(windowData.Sets or {}) do
                                                 if oldSetName == set then
                                                     btnUtils.Output(string.format(
                                                         "\awUpdating section '\ag%s\aw' renaming \am%s\aw => \at%s",
