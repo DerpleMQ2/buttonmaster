@@ -772,6 +772,19 @@ function BMHotbarClass:RenderContextMenu(Set, Index, buttonID)
                 BMSettings:GetSettings().Sets[Set][Index] = nil
                 BMSettings:SaveSettings(true)
             end
+            if ImGui.MenuItem("Delete") then
+                local buttonID = BMSettings:GetSettings().Sets[Set][Index]
+                for setNameKey, setButtons in pairs(BMSettings:GetSettings().Sets) do
+                    for buttonKey, buttonName in pairs(setButtons) do
+                        if buttonName == buttonID then
+                            BMSettings:GetSettings().Sets[setNameKey][buttonKey] = nil
+                        end
+                    end
+                end
+                BMSettings:GetSettings().Buttons[buttonID] = nil
+                BMSettings:SaveSettings(true)
+            end
+
             if ImGui.MenuItem(Icons.MD_SHARE) then
                 BMButtonHandlers.ExportButtonToClipBoard(button)
             end
