@@ -48,6 +48,9 @@ BMHotbarClass.newY                  = 0
 
 BMHotbarClass.searchText            = ""
 
+BMHotbarClass.currentDnDData        = nil
+
+
 function BMHotbarClass.new(id, createFresh)
     local newBMHotbar = setmetatable({ id = id, }, BMHotbarClass)
 
@@ -841,20 +844,31 @@ function BMHotbarClass:RenderButtons(Set, searchText)
             else
                 -- setup drag and drop
                 if ImGui.BeginDragDropSource() then
-                    ImGui.SetDragDropPayload("BTN", ButtonIndex)
+                    self.currentDnDData = { Set = Set, Index = ButtonIndex, }
+                    ImGui.SetDragDropPayload("BTN", self.id)
                     ImGui.Button(button.Label, btnSize, btnSize)
                     ImGui.EndDragDropSource()
                 end
                 if ImGui.BeginDragDropTarget() then
                     local payload = ImGui.AcceptDragDropPayload("BTN")
+
                     if payload ~= nil then
                         ---@diagnostic disable-next-line: undefined-field
-                        local num = payload.Data;
-                        -- swap the keys in the button set
-                        BMSettings:GetSettings().Sets[Set][num], BMSettings:GetSettings().Sets[Set][ButtonIndex] =
-                            BMSettings:GetSettings().Sets[Set][ButtonIndex],
-                            BMSettings:GetSettings().Sets[Set][num]
-                        BMSettings:SaveSettings(true)
+                        local dndData = BMHotbars[payload.Data].currentDnDData
+                        local success = dndData ~= nil
+                        if success then
+                            local to_set = dndData.Set
+                            local to_num = dndData.Index
+                            btnUtils.Output("Dropping button from set '" ..
+                                tostring(to_set) .. "' index " .. tostring(to_num) .. " to set '" .. tostring(Set) .. "' index " .. tostring(ButtonIndex))
+
+                            -- swap the keys in the button set
+                            BMSettings:GetSettings().Sets[to_set][to_num], BMSettings:GetSettings().Sets[Set][ButtonIndex] =
+                                BMSettings:GetSettings().Sets[Set][ButtonIndex], BMSettings:GetSettings().Sets[to_set][to_num]
+                            BMSettings:SaveSettings(true)
+                        else
+                            btnUtils.Output("\arError: Failed to decode dropped button payload :: %s!\ax", payload.Data or "nil")
+                        end
                     end
                     ImGui.EndDragDropTarget()
                 end
