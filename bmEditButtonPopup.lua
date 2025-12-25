@@ -46,6 +46,8 @@ function BMButtonEditor:RenderEditButtonPopup()
                 local cursorIndex = mq.TLO.CursorAttachment.Index()
                 local buttonText = mq.TLO.CursorAttachment.ButtonText():gsub("\n", " ")
                 local attachmentType = mq.TLO.CursorAttachment.Type():lower()
+                print("Attachment Type: ", attachmentType)
+
                 if attachmentType == "item" or attachmentType == "item_link" then
                     self.tmpButton.Label = mq.TLO.CursorAttachment.Item()
                     self.tmpButton.Cmd = string.format("/useitem \"%s\"", mq.TLO.CursorAttachment.Item())
@@ -94,6 +96,8 @@ function BMButtonEditor:RenderEditButtonPopup()
                         end
                     end
                 end
+
+                BMButtonEditor.textBuffer:SetText(self.tmpButton.Cmd or "")
 
                 for index, type in ipairs(BMSettings.Constants.TimerTypes) do
                     if type == self.tmpButton.TimerType then
