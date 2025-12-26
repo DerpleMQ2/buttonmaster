@@ -93,7 +93,7 @@ function BMButtonHandlers.GetButtonCooldown(Button, cacheUpdate)
         Button.CachedCoolDownTimer = mq.TLO.FindItem(Button.Cooldown).Clicky.TimerID() or 0
     elseif Button.TimerType == "Spell Gem" then
         Button.CachedCountDown = (mq.TLO.Me.GemTimer(Button.Cooldown)() or 0) / 1000
-        Button.CachedCoolDownTimer = mq.TLO.Me.GemTimer(Button.Cooldown).TotalSeconds() or 0
+        Button.CachedCoolDownTimer = (mq.TLO.Me.Gem(Button.Cooldown).RecastTime() or 0) / 1000
     elseif Button.TimerType == "AA" then
         Button.CachedCountDown = (mq.TLO.Me.AltAbilityTimer(Button.Cooldown)() or 0) / 1000
         Button.CachedCoolDownTimer = mq.TLO.Me.AltAbility(Button.Cooldown).MyReuseTime() or 0
