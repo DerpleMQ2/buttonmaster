@@ -50,6 +50,17 @@ BMHotbarClass.searchText            = ""
 
 BMHotbarClass.currentDnDData        = nil
 
+BMHotbarClass.alphaMenu             = {
+    { name = "A-D",   filter = function(i) return i >= "A" and i <= "D" end, items = {}, },
+    { name = "E-H",   filter = function(i) return i >= "E" and i <= "H" end, items = {}, },
+    { name = "I-L",   filter = function(i) return i >= "I" and i <= "L" end, items = {}, },
+    { name = "M-P",   filter = function(i) return i >= "M" and i <= "P" end, items = {}, },
+    { name = "Q-T",   filter = function(i) return i >= "Q" and i <= "T" end, items = {}, },
+    { name = "U-X",   filter = function(i) return i >= "U" and i <= "X" end, items = {}, },
+    { name = "Y-Z",   filter = function(i) return i >= "Y" and i <= "Z" end, items = {}, },
+    { name = "0-9",   filter = function(i) return i >= "0" and i <= "9" end, items = {}, },
+    { name = "Other", filter = function(i) return true end,                  items = {}, }, }
+
 
 function BMHotbarClass.new(id, createFresh)
     local newBMHotbar = setmetatable({ id = id, }, BMHotbarClass)
@@ -423,26 +434,45 @@ function BMHotbarClass:RenderTabContextMenu()
         end
 
         if ImGui.BeginMenu("Delete Hotkey") then
-            local sortedButtons = {}
+            local sortedKeys = {}
             for k, v in pairs(BMSettings:GetSettings().Buttons) do
-                table.insert(sortedButtons,
+                table.insert(sortedKeys,
                     { Label = BMButtonHandlers.ResolveButtonLabel(v, true), id = k, })
             end
-            table.sort(sortedButtons, function(a, b) return a.Label < b.Label end)
+            table.sort(sortedKeys, function(a, b) return a.Label < b.Label end)
 
-            for _, buttonData in pairs(sortedButtons) do
-                if ImGui.MenuItem(BMButtonHandlers.ResolveButtonLabel(buttonData, true)) then
-                    -- clean up any references to this Button.
-                    for setNameKey, setButtons in pairs(BMSettings:GetSettings().Sets) do
-                        for buttonKey, buttonName in pairs(setButtons) do
-                            if buttonName == buttonData.id then
-                                BMSettings:GetSettings().Sets[setNameKey][buttonKey] = nil
+            local sortedAlphaMenu = {}
+
+            for idx, buttonData in ipairs(sortedKeys) do
+                for _, menuGroup in ipairs(self.alphaMenu) do
+                    sortedAlphaMenu[menuGroup.name] = sortedAlphaMenu[menuGroup.name] or {}
+                    if menuGroup.filter(buttonData.Label:sub(1, 1):upper()) then
+                        table.insert(sortedAlphaMenu[menuGroup.name], { idx = idx, buttonData = buttonData, })
+                        break
+                    end
+                end
+            end
+
+            for name, items in pairs(sortedAlphaMenu) do
+                if #items > 0 then
+                    if ImGui.BeginMenu(name) then
+                        for _, item in ipairs(items) do
+                            if ImGui.MenuItem(item.buttonData.Label .. "##delete_menu_" .. tostring(item.idx)) then
+                                -- clean up any references to this Button.
+                                for setNameKey, setButtons in pairs(BMSettings:GetSettings().Sets) do
+                                    for buttonKey, buttonName in pairs(setButtons) do
+                                        if buttonName == item.buttonData.id then
+                                            BMSettings:GetSettings().Sets[setNameKey][buttonKey] = nil
+                                        end
+                                    end
+                                end
+                                BMSettings:GetSettings().Buttons[item.buttonData.id] = nil
+                                BMSettings:SaveSettings(true)
+                                break
                             end
                         end
+                        ImGui.EndMenu()
                     end
-                    BMSettings:GetSettings().Buttons[buttonData.id] = nil
-                    BMSettings:SaveSettings(true)
-                    break
                 end
             end
             ImGui.EndMenu()
@@ -732,17 +762,6 @@ function BMHotbarClass:RenderContextMenu(Set, Index, buttonID)
             if ImGui.BeginMenu("Assign Hotkey") then
                 -- hytiek: BEGIN ADD
                 -- Create an array to store the sorted keys
-                local alphaMenu = {
-                    { name = "A-D",   filter = function(i) return i >= "A" and i <= "D" end, items = {}, },
-                    { name = "E-H",   filter = function(i) return i >= "E" and i <= "H" end, items = {}, },
-                    { name = "I-L",   filter = function(i) return i >= "I" and i <= "L" end, items = {}, },
-                    { name = "M-P",   filter = function(i) return i >= "M" and i <= "P" end, items = {}, },
-                    { name = "Q-T",   filter = function(i) return i >= "Q" and i <= "T" end, items = {}, },
-                    { name = "U-X",   filter = function(i) return i >= "U" and i <= "X" end, items = {}, },
-                    { name = "Y-Z",   filter = function(i) return i >= "Y" and i <= "Z" end, items = {}, },
-                    { name = "0-9",   filter = function(i) return i >= "0" and i <= "9" end, items = {}, },
-                    { name = "Other", filter = function(i) return true end,                  items = {}, }, }
-
                 local sortedKeys = {}
 
                 -- Populate the array with non-nil keys from the original table
@@ -759,23 +778,27 @@ function BMHotbarClass:RenderContextMenu(Set, Index, buttonID)
                     return labelA < labelB
                 end)
 
+                local sortedAlphaMenu = {}
+
                 for idx, key in ipairs(sortedKeys) do
                     local value = unassigned[key]
                     if value ~= nil then
-                        for _, menuGroup in ipairs(alphaMenu) do
-                            if menuGroup.filter(BMButtonHandlers.ResolveButtonLabel(value, true):sub(1, 1):upper()) then
-                                table.insert(menuGroup.items, { idx = idx, key = key, value = value, })
+                        for _, menuGroup in ipairs(self.alphaMenu) do
+                            sortedAlphaMenu[menuGroup.name] = sortedAlphaMenu[menuGroup.name] or {}
+                            local label = BMButtonHandlers.ResolveButtonLabel(value, true)
+                            if menuGroup.filter(label:sub(1, 1):upper()) then
+                                table.insert(sortedAlphaMenu[menuGroup.name], { idx = idx, key = key, value = value, label = label, })
                                 break
                             end
                         end
                     end
                 end
 
-                for _, menuGroup in ipairs(alphaMenu) do
-                    if #menuGroup.items > 0 then
-                        if ImGui.BeginMenu(menuGroup.name) then
-                            for _, item in ipairs(menuGroup.items) do
-                                if ImGui.MenuItem(BMButtonHandlers.ResolveButtonLabel(item.value, true) .. "##assign_menu_" .. tostring(item.idx)) then
+                for name, items in pairs(sortedAlphaMenu) do
+                    if #items > 0 then
+                        if ImGui.BeginMenu(name) then
+                            for _, item in ipairs(items) do
+                                if ImGui.MenuItem(item.label .. "##assign_menu_" .. tostring(item.idx)) then
                                     BMSettings:GetSettings().Sets[Set][Index] = item.key
                                     BMSettings:SaveSettings(true)
                                     break
