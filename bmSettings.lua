@@ -1,8 +1,9 @@
-local mq            = require('mq')
-local btnUtils      = require('lib.buttonUtils')
+local mq               = require('mq')
+local btnUtils         = require('lib.buttonUtils')
+local BMButtonHandlers = require('bmButtonHandlers')
 
-local settings_base = mq.configDir .. '/ButtonMaster'
-local settings_path = settings_base .. '.lua '
+local settings_base    = mq.configDir .. '/ButtonMaster'
+local settings_path    = settings_base .. '.lua '
 
 
 local BMSettings                 = {}
@@ -147,6 +148,7 @@ end
 function BMSettings:ImportButtonAndSave(button, save)
     local key = self:GenerateButtonKey()
     self.settings.Buttons[key] = button
+    btnUtils.Output("\agImported Button: \at%s\ag as \at%s", BMButtonHandlers.ResolveButtonLabel(button, true) or "<No Label>", key)
     if save then
         self:SaveSettings(true)
     end
@@ -175,8 +177,10 @@ function BMSettings:ImportSetAndSave(sharableSet, windowId)
         setName = newSetName
     end
 
+    btnUtils.Output("\agImporting Set: \at%s\ag with \at%d\ag buttons", setName, #(sharableSet.Set or {}))
+
     self.settings.Sets[setName] = {}
-    for index, btnName in pairs(sharableSet.Set) do
+    for index, btnName in pairs(sharableSet.Set or {}) do
         local newButtonName = self:ImportButtonAndSave(sharableSet.Buttons[btnName], false)
         self.settings.Sets[setName][index] = newButtonName
     end
