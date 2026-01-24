@@ -453,9 +453,10 @@ function BMHotbarClass:RenderTabContextMenu()
                 end
             end
 
-            for name, items in pairs(sortedAlphaMenu) do
+            for _, menuGroup in pairs(self.alphaMenu) do
+                local items = sortedAlphaMenu[menuGroup.name] or {}
                 if #items > 0 then
-                    if ImGui.BeginMenu(name) then
+                    if ImGui.BeginMenu(menuGroup.name) then
                         for _, item in ipairs(items) do
                             if ImGui.MenuItem(item.buttonData.Label .. "##delete_menu_" .. tostring(item.idx)) then
                                 -- clean up any references to this Button.
@@ -794,9 +795,11 @@ function BMHotbarClass:RenderContextMenu(Set, Index, buttonID)
                     end
                 end
 
-                for name, items in pairs(sortedAlphaMenu) do
+
+                for _, menuGroup in pairs(self.alphaMenu) do
+                    local items = sortedAlphaMenu[menuGroup.name] or {}
                     if #items > 0 then
-                        if ImGui.BeginMenu(name) then
+                        if ImGui.BeginMenu(menuGroup.name) then
                             for _, item in ipairs(items) do
                                 if ImGui.MenuItem(item.label .. "##assign_menu_" .. tostring(item.idx)) then
                                     BMSettings:GetSettings().Sets[Set][Index] = item.key
