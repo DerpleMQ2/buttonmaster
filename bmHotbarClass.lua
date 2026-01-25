@@ -66,7 +66,16 @@ function BMHotbarClass.new(id, createFresh)
     local newBMHotbar = setmetatable({ id = id, }, BMHotbarClass)
 
     if createFresh then
-        BMSettings:GetCharConfig().Windows[id] = { Visible = true, Sets = {}, Locked = false, HideTitleBar = false, CompactMode = false, AdvTooltips = true, ShowSearch = false, }
+        BMSettings:GetCharConfig().Windows[id] = {
+            Visible = true,
+            Sets = {},
+            Locked = false,
+            HideTitleBar = false,
+            CompactMode = false,
+            AdvTooltips = true,
+            ShowSearch = false,
+            PerCharacterPositioning = false,
+        }
 
         -- if this character doesn't have the sections in the config, create them
         newBMHotbar.updateWindowPosSize = true
@@ -97,6 +106,10 @@ end
 
 function BMHotbarClass:IsVisible()
     return BMSettings:GetCharacterWindow(self.id).Visible
+end
+
+function BMHotbarClass:PerCharacterPositioning()
+    return BMSettings:GetCharacterWindow(self.id).PerCharacterPositioning
 end
 
 ---@return integer, integer
@@ -198,8 +211,14 @@ function BMHotbarClass:RenderHotbar(flags)
     end
 
     local colorPop, stylePop = self:StartTheme()
+    local renderName = string.format('Button Master - %d', self.id)
+
+    if self:PerCharacterPositioning() then
+        renderName = renderName .. "##" .. mq.TLO.EverQuest.Server() .. "_" .. mq.TLO.Me.Name()
+    end
+
     ImGui.PushID("##MainWindow_" .. tostring(self.id))
-    self.openGUI, self.shouldDrawGUI = ImGui.Begin(string.format('Button Master - %d', self.id), self.openGUI,
+    self.openGUI, self.shouldDrawGUI = ImGui.Begin(renderName, self.openGUI,
         bit32.bor(flags))
 
     if not ImGui.IsMouseDown(ImGuiMouseButton.Left) then
@@ -599,6 +618,11 @@ function BMHotbarClass:RenderTabContextMenu()
             if ImGui.MenuItem((BMSettings:GetCharacterWindow(self.id).CompactMode and "Normal" or "Compact") .. " Mode") then
                 BMSettings:GetCharacterWindow(self.id).CompactMode = not BMSettings:GetCharacterWindow(self.id)
                     .CompactMode
+                BMSettings:SaveSettings(true)
+            end
+            if ImGui.MenuItem((BMSettings:GetCharacterWindow(self.id).PerCharacterPositioning and "Global Window Positioning" or "Per Char Window Positioning")) then
+                BMSettings:GetCharacterWindow(self.id).PerCharacterPositioning = not BMSettings:GetCharacterWindow(self.id)
+                    .PerCharacterPositioning
                 BMSettings:SaveSettings(true)
             end
             if ImGui.MenuItem((BMSettings:GetCharacterWindow(self.id).AdvTooltips and "Disable" or "Enable") .. " Advanced Tooltips") then

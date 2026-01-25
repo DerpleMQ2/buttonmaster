@@ -49,7 +49,7 @@ local function BindBtnCopy(server, character)
     if not server or not character then return end
 
     local cname = character:sub(1, 1):upper() .. character:sub(2)
-    local key = server:lower() .. "_" .. cname
+    local key = server .. "_" .. cname
     if not BMSettings:GetSettings().Characters[key] then
         btnUtils.Output("\arError: \ayProfile: \at%s\ay not found!", key)
         return
